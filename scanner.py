@@ -1,7 +1,7 @@
+import argparse
 import json
 import re
 
-LOG_FILE = "sample.log"
 IOC_CONFIG_FILE = "iocs.json"
 
 
@@ -10,10 +10,17 @@ def load_patterns():
         return json.load(f)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Scan a log file for IOCs.")
+    parser.add_argument("log_file", help="Path to the log file to scan")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     patterns = load_patterns()
 
-    with open(LOG_FILE, "r") as f:
+    with open(args.log_file, "r") as f:
         for line in f:
             line = line.rstrip()
             for ioc_type, pattern in patterns.items():
