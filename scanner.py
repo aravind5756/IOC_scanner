@@ -66,6 +66,13 @@ def scan_file(
 def parse_args():
     parser = argparse.ArgumentParser(description="Scan a log file for IOCs.")
     parser.add_argument("log_file", help="Path to the log file to scan")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+        help="Output format (default: text)",
+    )
     return parser.parse_args()
 
 
@@ -73,18 +80,41 @@ def main():
     args = parse_args()
     patterns = load_patterns()
     stats = ScanStats()
+    json_findings = []
 
     for line_number, ioc_type, match, line in scan_file(
         args.log_file, patterns, stats
     ):
-        print(f"[{ioc_type}] line {line_number}: {match} -> {line}")
+        if args.output_format == "text":
+            print(f"[{ioc_type}] line {line_number}: {match} -> {line}")
+        else:
+            json_findings.append(
+                {
+                    "type": ioc_type,
+                    "value": match,
+                    "line_number": line_number,
+                    "context": line,
+                }
+            )
 
-    print("\nScan summary")
-    print(f"File: {args.log_file}")
-    print(f"Lines scanned: {stats.lines_scanned}")
-    print(f"Total findings: {stats.total_findings}")
-    for ioc_type, count in sorted(stats.findings_by_type.items()):
-        print(f"  {ioc_type}: {count}")
+    if args.output_format == "json":
+        report = {
+            "file": args.log_file,
+            "summary": {
+                "lines_scanned": stats.lines_scanned,
+                "total_findings": stats.total_findings,
+                "findings_by_type": dict(sorted(stats.findings_by_type.items())),
+            },
+            "findings": json_findings,
+        }
+        print(json.dumps(report, indent=2))
+    else:
+        print("\nScan summary")
+        print(f"File: {args.log_file}")
+        print(f"Lines scanned: {stats.lines_scanned}")
+        print(f"Total findings: {stats.total_findings}")
+        for ioc_type, count in sorted(stats.findings_by_type.items()):
+            print(f"  {ioc_type}: {count}")
 
 
 if __name__ == "__main__":
