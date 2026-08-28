@@ -1,4 +1,5 @@
 import argparse
+import ipaddress
 import json
 import re
 from collections.abc import Iterator, Mapping
@@ -11,12 +12,22 @@ def load_patterns() -> dict[str, str]:
         return json.load(f)
 
 
+def is_valid_ipv4(value: str) -> bool:
+    """Return whether a value is a valid IPv4 address."""
+    try:
+        return isinstance(ipaddress.ip_address(value), ipaddress.IPv4Address)
+    except ValueError:
+        return False
+
+
 def find_iocs(line: str, patterns: Mapping[str, str]) -> list[tuple[str, str]]:
     """Return every IOC found in a single line of log text."""
     findings = []
 
     for ioc_type, pattern in patterns.items():
         for match in re.findall(pattern, line):
+            if ioc_type == "ipv4" and not is_valid_ipv4(match):
+                continue
             findings.append((ioc_type, match))
 
     return findings
