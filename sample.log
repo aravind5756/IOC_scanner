@@ -3,3 +3,6 @@
 2026-08-10 09:15:02 INFO File downloaded: invoice.pdf
 2026-08-10 09:16:45 ERROR Connection refused to 45.155.205.233
 2026-08-10 09:18:10 WARNING Malware signature match: d41d8cd98f00b204e9800998ecf8427e
+2026-08-10 09:20:14 WARNING Suspicious email received from billing@malicious-example.com
+2026-08-10 09:21:37 ERROR Blocked outbound request to http://malicious-example.com/payload.exe
+2026-08-10 09:23:05 WARNING SHA-1 signature match: 3395856ce81f2b7382dee72602f798b642f14140
