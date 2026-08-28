@@ -54,8 +54,8 @@ def main():
     args = parse_args()
     patterns = load_patterns()
 
-    for _, ioc_type, match, line in scan_file(args.log_file, patterns):
-        print(f"[{ioc_type}] {match} -> {line}")
+    for line_number, ioc_type, match, line in scan_file(args.log_file, patterns):
+        print(f"[{ioc_type}] line {line_number}: {match} -> {line}")
 
 
 if __name__ == "__main__":
