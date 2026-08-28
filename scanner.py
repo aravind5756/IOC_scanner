@@ -2,9 +2,20 @@ import argparse
 import ipaddress
 import json
 import re
+from collections import Counter
 from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, field
 
 IOC_CONFIG_FILE = "iocs.json"
+
+
+@dataclass
+class ScanStats:
+    """Running totals collected while a log file is scanned."""
+
+    lines_scanned: int = 0
+    total_findings: int = 0
+    findings_by_type: Counter[str] = field(default_factory=Counter)
 
 
 def load_patterns() -> dict[str, str]:
@@ -34,13 +45,21 @@ def find_iocs(line: str, patterns: Mapping[str, str]) -> list[tuple[str, str]]:
 
 
 def scan_file(
-    log_file: str, patterns: Mapping[str, str]
+    log_file: str,
+    patterns: Mapping[str, str],
+    stats: ScanStats | None = None,
 ) -> Iterator[tuple[int, str, str, str]]:
     """Yield the line number, IOC type, match, and source line for each finding."""
+    if stats is None:
+        stats = ScanStats()
+
     with open(log_file, "r") as f:
         for line_number, line in enumerate(f, start=1):
+            stats.lines_scanned = line_number
             line = line.rstrip()
             for ioc_type, match in find_iocs(line, patterns):
+                stats.total_findings += 1
+                stats.findings_by_type[ioc_type] += 1
                 yield line_number, ioc_type, match, line
 
 
@@ -53,9 +72,19 @@ def parse_args():
 def main():
     args = parse_args()
     patterns = load_patterns()
+    stats = ScanStats()
 
-    for line_number, ioc_type, match, line in scan_file(args.log_file, patterns):
+    for line_number, ioc_type, match, line in scan_file(
+        args.log_file, patterns, stats
+    ):
         print(f"[{ioc_type}] line {line_number}: {match} -> {line}")
+
+    print("\nScan summary")
+    print(f"File: {args.log_file}")
+    print(f"Lines scanned: {stats.lines_scanned}")
+    print(f"Total findings: {stats.total_findings}")
+    for ioc_type, count in sorted(stats.findings_by_type.items()):
+        print(f"  {ioc_type}: {count}")
 
 
 if __name__ == "__main__":
