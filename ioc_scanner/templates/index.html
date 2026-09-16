@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IOC Scanner</title>
+  </head>
+  <body>
+    <header>
+      <h1>IOC Scanner</h1>
+      <p>Inspect log files for indicators of compromise.</p>
+    </header>
+
+    <main>
+      <section aria-labelledby="scan-heading">
+        <h2 id="scan-heading">Scan a log file</h2>
+        <p>Select a plain-text log file to analyse for suspicious indicators.</p>
+
+        <form>
+          <label for="log-file">Log file</label>
+          <input id="log-file" name="log_file" type="file" accept=".log,.txt">
+          <button type="submit" disabled>Scan file</button>
+        </form>
+
+        <p><small>File scanning will be enabled in the next milestone.</small></p>
+      </section>
+    </main>
+  </body>
+</html>
