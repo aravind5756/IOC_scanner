@@ -23,9 +23,43 @@
         >
           <label for="log-file">Log file</label>
           <input id="log-file" name="log_file" type="file" accept=".log,.txt" required>
-          <button type="submit">Scan file</button>
+          <button id="scan-button" type="submit">Scan file</button>
         </form>
+
+        <p id="scan-status" role="status" aria-live="polite"></p>
+        <p id="scan-error" role="alert" hidden></p>
+      </section>
+
+      <section id="scan-results" aria-labelledby="results-heading" hidden>
+        <h2 id="results-heading">Scan results</h2>
+        <p>File: <strong id="result-file"></strong></p>
+
+        <dl>
+          <dt>Lines scanned</dt>
+          <dd id="lines-scanned"></dd>
+          <dt>Total findings</dt>
+          <dd id="total-findings"></dd>
+        </dl>
+
+        <h3>Findings by type</h3>
+        <ul id="findings-by-type"></ul>
+
+        <h3>Detected indicators</h3>
+        <p id="no-findings" hidden>No indicators were found in this file.</p>
+        <table id="findings-table">
+          <thead>
+            <tr>
+              <th scope="col">Type</th>
+              <th scope="col">Value</th>
+              <th scope="col">Line</th>
+              <th scope="col">Context</th>
+            </tr>
+          </thead>
+          <tbody id="findings-body"></tbody>
+        </table>
       </section>
     </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   </body>
 </html>
