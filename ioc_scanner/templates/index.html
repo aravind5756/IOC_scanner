@@ -16,13 +16,15 @@
         <h2 id="scan-heading">Scan a log file</h2>
         <p>Select a plain-text log file to analyse for suspicious indicators.</p>
 
-        <form>
+        <form
+          action="{{ url_for('scan_upload') }}"
+          method="post"
+          enctype="multipart/form-data"
+        >
           <label for="log-file">Log file</label>
-          <input id="log-file" name="log_file" type="file" accept=".log,.txt">
-          <button type="submit" disabled>Scan file</button>
+          <input id="log-file" name="log_file" type="file" accept=".log,.txt" required>
+          <button type="submit">Scan file</button>
         </form>
-
-        <p><small>File scanning will be enabled in the next milestone.</small></p>
       </section>
     </main>
   </body>
