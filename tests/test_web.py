@@ -1,0 +1,71 @@
+import io
+import unittest
+from unittest.mock import patch
+
+from ioc_scanner.web import create_app
+
+IPV4_PATTERN = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
+
+
+class WebApplicationTests(unittest.TestCase):
+    def setUp(self):
+        app = create_app()
+        app.config["TESTING"] = True
+        self.client = app.test_client()
+
+    def test_home_page_loads(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"IOC Scanner", response.data)
+
+    def test_health_endpoint_reports_ok(self):
+        response = self.client.get("/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"status": "ok"})
+
+    @patch("ioc_scanner.web.load_patterns", return_value={"ipv4": IPV4_PATTERN})
+    def test_scan_upload_returns_findings_and_network_scope(self, mock_load_patterns):
+        response = self.client.post(
+            "/scan",
+            data={
+                "log_file": (
+                    io.BytesIO(b"Connection from 10.0.0.5\nNo indicator here\n"),
+                    "events.log",
+                )
+            },
+            content_type="multipart/form-data",
+        )
+
+        report = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["file"], "events.log")
+        self.assertEqual(report["summary"]["lines_scanned"], 2)
+        self.assertEqual(report["summary"]["total_findings"], 1)
+        self.assertEqual(report["findings"][0]["value"], "10.0.0.5")
+        self.assertEqual(report["findings"][0]["network_scope"], "private")
+        mock_load_patterns.assert_called_once_with()
+
+    def test_scan_upload_requires_a_file(self):
+        response = self.client.post("/scan")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json(), {"error": "No log file was provided."})
+
+    def test_scan_upload_rejects_unsupported_file_types(self):
+        response = self.client.post(
+            "/scan",
+            data={"log_file": (io.BytesIO(b"example"), "events.csv")},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Only .log and .txt files are supported."},
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
