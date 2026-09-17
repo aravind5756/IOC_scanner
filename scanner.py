@@ -4,7 +4,7 @@ import sys
 from contextlib import nullcontext
 from pathlib import Path
 
-from ioc_scanner import ScanStats, load_patterns, scan_file
+from ioc_scanner import ScanStats, classify_ipv4, load_patterns, scan_file
 
 
 def parse_args():
@@ -45,20 +45,24 @@ def main():
         for line_number, ioc_type, match, line in scan_file(
             args.log_file, patterns, stats
         ):
+            network_scope = classify_ipv4(match) if ioc_type == "ipv4" else None
+
             if args.output_format == "text":
+                scope_label = f" ({network_scope})" if network_scope else ""
                 print(
-                    f"[{ioc_type}] line {line_number}: {match} -> {line}",
+                    f"[{ioc_type}] line {line_number}: {match}{scope_label} -> {line}",
                     file=output_stream,
                 )
             else:
-                json_findings.append(
-                    {
-                        "type": ioc_type,
-                        "value": match,
-                        "line_number": line_number,
-                        "context": line,
-                    }
-                )
+                finding = {
+                    "type": ioc_type,
+                    "value": match,
+                    "line_number": line_number,
+                    "context": line,
+                }
+                if network_scope:
+                    finding["network_scope"] = network_scope
+                json_findings.append(finding)
 
         if args.output_format == "json":
             report = {
