@@ -6,7 +6,7 @@ from tempfile import NamedTemporaryFile
 from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from .engine import ScanStats, load_patterns, scan_file
+from .engine import ScanStats, classify_ipv4, load_patterns, scan_file
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
@@ -53,14 +53,15 @@ def create_app() -> Flask:
             for line_number, ioc_type, value, context in scan_file(
                 str(temporary_path), patterns, stats
             ):
-                findings.append(
-                    {
-                        "type": ioc_type,
-                        "value": value,
-                        "line_number": line_number,
-                        "context": context,
-                    }
-                )
+                finding = {
+                    "type": ioc_type,
+                    "value": value,
+                    "line_number": line_number,
+                    "context": context,
+                }
+                if ioc_type == "ipv4":
+                    finding["network_scope"] = classify_ipv4(value)
+                findings.append(finding)
         except UnicodeDecodeError:
             return jsonify(error="The uploaded file must contain plain text."), 400
         finally:
