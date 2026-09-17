@@ -249,9 +249,19 @@ td {
 
 td:nth-child(1),
 td:nth-child(2),
-td:nth-child(3) {
+td:nth-child(3),
+td:nth-child(4) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.84rem;
+}
+
+.network-scope {
+  color: var(--accent);
+  text-transform: capitalize;
+}
+
+.not-applicable {
+  color: var(--muted);
 }
 
 tbody tr:last-child td {

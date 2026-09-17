@@ -6,9 +6,12 @@ const scanResults = document.querySelector("#scan-results");
 const findingsTableWrapper = document.querySelector("#findings-table-wrapper");
 const noFindings = document.querySelector("#no-findings");
 
-function addTableCell(row, value) {
+function addTableCell(row, value, className = "") {
   const cell = document.createElement("td");
   cell.textContent = value;
+  if (className) {
+    cell.classList.add(className);
+  }
   row.appendChild(cell);
 }
 
@@ -33,6 +36,11 @@ function displayReport(report) {
     const row = document.createElement("tr");
     addTableCell(row, finding.type);
     addTableCell(row, finding.value);
+    addTableCell(
+      row,
+      finding.network_scope || "—",
+      finding.network_scope ? "network-scope" : "not-applicable",
+    );
     addTableCell(row, finding.line_number);
     addTableCell(row, finding.context);
     findingsBody.appendChild(row);
