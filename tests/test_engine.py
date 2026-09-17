@@ -2,7 +2,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ioc_scanner.engine import ScanStats, find_iocs, is_valid_ipv4, scan_file
+from ioc_scanner.engine import (
+    ScanStats,
+    classify_ipv4,
+    find_iocs,
+    is_valid_ipv4,
+    scan_file,
+)
 
 IPV4_PATTERN = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
 MD5_PATTERN = r"\b[a-fA-F0-9]{32}\b"
@@ -19,6 +25,28 @@ class IPv4ValidationTests(unittest.TestCase):
         for address in ("999.999.999.999", "192.168.1.256", "2001:db8::1", "text"):
             with self.subTest(address=address):
                 self.assertFalse(is_valid_ipv4(address))
+
+
+class IPv4ClassificationTests(unittest.TestCase):
+    def test_classifies_ipv4_network_scopes(self):
+        expected_classifications = {
+            "8.8.8.8": "public",
+            "10.0.0.5": "private",
+            "127.0.0.1": "loopback",
+            "169.254.10.20": "link-local",
+            "224.0.0.1": "multicast",
+            "240.0.0.1": "reserved",
+            "0.0.0.0": "unspecified",
+        }
+
+        for address, expected in expected_classifications.items():
+            with self.subTest(address=address):
+                self.assertEqual(classify_ipv4(address), expected)
+
+    def test_marks_invalid_or_non_ipv4_values_as_invalid(self):
+        for value in ("999.999.999.999", "2001:db8::1", "text"):
+            with self.subTest(value=value):
+                self.assertEqual(classify_ipv4(value), "invalid")
 
 
 class IOCMatchingTests(unittest.TestCase):
