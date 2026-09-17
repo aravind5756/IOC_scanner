@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>IOC Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
     <header>
@@ -34,11 +35,15 @@
         <h2 id="results-heading">Scan results</h2>
         <p>File: <strong id="result-file"></strong></p>
 
-        <dl>
-          <dt>Lines scanned</dt>
-          <dd id="lines-scanned"></dd>
-          <dt>Total findings</dt>
-          <dd id="total-findings"></dd>
+        <dl class="summary-grid">
+          <div class="summary-card">
+            <dt>Lines scanned</dt>
+            <dd id="lines-scanned"></dd>
+          </div>
+          <div class="summary-card">
+            <dt>Total findings</dt>
+            <dd id="total-findings"></dd>
+          </div>
         </dl>
 
         <h3>Findings by type</h3>
@@ -46,17 +51,19 @@
 
         <h3>Detected indicators</h3>
         <p id="no-findings" hidden>No indicators were found in this file.</p>
-        <table id="findings-table">
-          <thead>
-            <tr>
-              <th scope="col">Type</th>
-              <th scope="col">Value</th>
-              <th scope="col">Line</th>
-              <th scope="col">Context</th>
-            </tr>
-          </thead>
-          <tbody id="findings-body"></tbody>
-        </table>
+        <div id="findings-table-wrapper" class="table-wrapper">
+          <table id="findings-table">
+            <thead>
+              <tr>
+                <th scope="col">Type</th>
+                <th scope="col">Value</th>
+                <th scope="col">Line</th>
+                <th scope="col">Context</th>
+              </tr>
+            </thead>
+            <tbody id="findings-body"></tbody>
+          </table>
+        </div>
       </section>
     </main>
 

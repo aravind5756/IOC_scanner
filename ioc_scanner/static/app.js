@@ -3,7 +3,7 @@ const scanButton = document.querySelector("#scan-button");
 const scanStatus = document.querySelector("#scan-status");
 const scanError = document.querySelector("#scan-error");
 const scanResults = document.querySelector("#scan-results");
-const findingsTable = document.querySelector("#findings-table");
+const findingsTableWrapper = document.querySelector("#findings-table-wrapper");
 const noFindings = document.querySelector("#no-findings");
 
 function addTableCell(row, value) {
@@ -39,7 +39,7 @@ function displayReport(report) {
   }
 
   const hasFindings = report.findings.length > 0;
-  findingsTable.hidden = !hasFindings;
+  findingsTableWrapper.hidden = !hasFindings;
   noFindings.hidden = hasFindings;
   scanResults.hidden = false;
 }
