@@ -33,6 +33,32 @@ def is_valid_ipv4(value: str) -> bool:
         return False
 
 
+def classify_ipv4(value: str) -> str:
+    """Describe the network scope of an IPv4 address."""
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        return "invalid"
+
+    if not isinstance(address, ipaddress.IPv4Address):
+        return "invalid"
+    if address.is_unspecified:
+        return "unspecified"
+    if address.is_loopback:
+        return "loopback"
+    if address.is_link_local:
+        return "link-local"
+    if address.is_multicast:
+        return "multicast"
+    if address.is_reserved:
+        return "reserved"
+    if address.is_private:
+        return "private"
+    if address.is_global:
+        return "public"
+    return "special-use"
+
+
 def find_iocs(line: str, patterns: Mapping[str, str]) -> list[tuple[str, str]]:
     """Return every IOC found in a single line of log text."""
     findings = []
