@@ -16,8 +16,9 @@ PATTERNS = {"ipv4": IPV4_PATTERN, "md5_hash": MD5_PATTERN}
 
 
 class CLIReportTests(unittest.TestCase):
-    def run_scanner(self, output_format):
-        log_content = f"Connection from 10.0.0.5\nHash {MD5_VALUE}\n"
+    def run_scanner(self, output_format, log_content=None, threshold=None):
+        if log_content is None:
+            log_content = f"Connection from 10.0.0.5\nHash {MD5_VALUE}\n"
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             log_file = Path(temporary_directory) / "events.log"
@@ -25,6 +26,8 @@ class CLIReportTests(unittest.TestCase):
             arguments = ["scanner.py", str(log_file)]
             if output_format == "json":
                 arguments.extend(["--format", "json"])
+            if threshold is not None:
+                arguments.extend(["--failed-login-threshold", str(threshold)])
 
             output = io.StringIO()
             with (
@@ -48,6 +51,41 @@ class CLIReportTests(unittest.TestCase):
         ipv4_finding, hash_finding = report["findings"]
         self.assertEqual(ipv4_finding["network_scope"], "private")
         self.assertNotIn("network_scope", hash_finding)
+
+    def test_text_report_displays_failed_login_alert(self):
+        log_content = (
+            "Failed login from 185.220.101.7\n"
+            "Failed password from 185.220.101.7\n"
+            "FAILED LOGIN from 185.220.101.7\n"
+        )
+
+        output = self.run_scanner("text", log_content, threshold=3)
+
+        self.assertIn("Security alerts: 1", output)
+        self.assertIn("[HIGH] AUTH-001: Repeated failed login attempts", output)
+        self.assertIn("Source IP: 185.220.101.7", output)
+        self.assertIn("Evidence lines: 1, 2, 3", output)
+
+    def test_json_report_includes_failed_login_alert(self):
+        log_content = (
+            "Failed login from 185.220.101.7\n"
+            "Failed login from 185.220.101.7\n"
+        )
+
+        report = json.loads(self.run_scanner("json", log_content, threshold=2))
+
+        self.assertEqual(report["summary"]["total_alerts"], 1)
+        self.assertEqual(
+            report["alerts"][0],
+            {
+                "rule_id": "AUTH-001",
+                "title": "Repeated failed login attempts",
+                "severity": "high",
+                "source_ip": "185.220.101.7",
+                "occurrences": 2,
+                "evidence_lines": [1, 2],
+            },
+        )
 
 
 if __name__ == "__main__":
