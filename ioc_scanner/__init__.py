@@ -1,5 +1,14 @@
 """Reusable IOC scanning package."""
 
+from .detections import SecurityAlert, detect_repeated_failed_logins
 from .engine import ScanStats, classify_ipv4, find_iocs, load_patterns, scan_file
 
-__all__ = ["ScanStats", "classify_ipv4", "find_iocs", "load_patterns", "scan_file"]
+__all__ = [
+    "ScanStats",
+    "SecurityAlert",
+    "classify_ipv4",
+    "detect_repeated_failed_logins",
+    "find_iocs",
+    "load_patterns",
+    "scan_file",
+]
