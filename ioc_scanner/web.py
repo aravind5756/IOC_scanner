@@ -1,15 +1,18 @@
 """Flask application for the IOC scanner web interface."""
 
+from dataclasses import asdict
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from .detections import detect_repeated_failed_logins
 from .engine import ScanStats, classify_ipv4, load_patterns, scan_file
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
+FAILED_LOGIN_THRESHOLD = 5
 
 
 def create_app() -> Flask:
@@ -47,6 +50,11 @@ def create_app() -> Flask:
 
         try:
             patterns = load_patterns()
+            with temporary_path.open("r") as log_file:
+                alerts = detect_repeated_failed_logins(
+                    log_file, threshold=FAILED_LOGIN_THRESHOLD
+                )
+
             stats = ScanStats()
             findings = []
 
@@ -72,9 +80,11 @@ def create_app() -> Flask:
             summary={
                 "lines_scanned": stats.lines_scanned,
                 "total_findings": stats.total_findings,
+                "total_alerts": len(alerts),
                 "findings_by_type": dict(sorted(stats.findings_by_type.items())),
             },
             findings=findings,
+            alerts=[asdict(alert) for alert in alerts],
         )
 
     @app.errorhandler(RequestEntityTooLarge)
