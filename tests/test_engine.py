@@ -6,6 +6,7 @@ from ioc_scanner.engine import (
     ScanStats,
     classify_ipv4,
     find_iocs,
+    is_allowlisted,
     is_valid_ipv4,
     scan_file,
 )
@@ -64,6 +65,51 @@ class IOCMatchingTests(unittest.TestCase):
         findings = find_iocs("source=999.999.999.999", {"ipv4": IPV4_PATTERN})
 
         self.assertEqual(findings, [])
+
+
+class AllowlistTests(unittest.TestCase):
+    def test_matches_exact_values_within_the_correct_ioc_type(self):
+        allowlist = {"ipv4": ["10.0.0.5"]}
+
+        self.assertTrue(is_allowlisted("ipv4", "10.0.0.5", allowlist))
+        self.assertFalse(is_allowlisted("email", "10.0.0.5", allowlist))
+        self.assertFalse(is_allowlisted("ipv4", "10.0.0.50", allowlist))
+
+    def test_find_iocs_excludes_allowlisted_values(self):
+        line = "trusted=10.0.0.5 external=8.8.8.8"
+
+        findings = find_iocs(
+            line,
+            {"ipv4": IPV4_PATTERN},
+            {"ipv4": ["10.0.0.5"]},
+        )
+
+        self.assertEqual(findings, [("ipv4", "8.8.8.8")])
+
+    def test_scan_statistics_exclude_allowlisted_findings(self):
+        log_content = "Trusted 10.0.0.5\nExternal 8.8.8.8\n"
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_file = Path(temporary_directory) / "test.log"
+            log_file.write_text(log_content, encoding="utf-8")
+            stats = ScanStats()
+
+            findings = list(
+                scan_file(
+                    str(log_file),
+                    {"ipv4": IPV4_PATTERN},
+                    stats,
+                    {"ipv4": ["10.0.0.5"]},
+                )
+            )
+
+        self.assertEqual(
+            findings,
+            [(2, "ipv4", "8.8.8.8", "External 8.8.8.8")],
+        )
+        self.assertEqual(stats.lines_scanned, 2)
+        self.assertEqual(stats.total_findings, 1)
+        self.assertEqual(stats.findings_by_type, {"ipv4": 1})
 
 
 class FileScanningTests(unittest.TestCase):
