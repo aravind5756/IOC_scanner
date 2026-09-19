@@ -9,6 +9,7 @@ from ioc_scanner import (
     ScanStats,
     classify_ipv4,
     detect_repeated_failed_logins,
+    load_allowlist,
     load_patterns,
     scan_file,
 )
@@ -57,6 +58,7 @@ def main():
         raise SystemExit("Error: the output file must be different from the log file.")
 
     patterns = load_patterns()
+    allowlist = load_allowlist()
     with open(args.log_file, "r") as log_file:
         alerts = detect_repeated_failed_logins(
             log_file, threshold=args.failed_login_threshold
@@ -73,7 +75,7 @@ def main():
 
     with output_context as output_stream:
         for line_number, ioc_type, match, line in scan_file(
-            args.log_file, patterns, stats
+            args.log_file, patterns, stats, allowlist
         ):
             network_scope = classify_ipv4(match) if ioc_type == "ipv4" else None
 
