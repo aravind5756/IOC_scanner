@@ -5,6 +5,8 @@ const scanError = document.querySelector("#scan-error");
 const scanResults = document.querySelector("#scan-results");
 const findingsTableWrapper = document.querySelector("#findings-table-wrapper");
 const noFindings = document.querySelector("#no-findings");
+const securityAlerts = document.querySelector("#security-alerts");
+const alertsList = document.querySelector("#alerts-list");
 
 function addTableCell(row, value, className = "") {
   const cell = document.createElement("td");
@@ -15,10 +17,38 @@ function addTableCell(row, value, className = "") {
   row.appendChild(cell);
 }
 
+function addAlertDetail(card, label, value) {
+  const detail = document.createElement("p");
+  const labelElement = document.createElement("strong");
+  labelElement.textContent = `${label}: `;
+  detail.append(labelElement, document.createTextNode(value));
+  card.appendChild(detail);
+}
+
 function displayReport(report) {
   document.querySelector("#result-file").textContent = report.file;
   document.querySelector("#lines-scanned").textContent = report.summary.lines_scanned;
   document.querySelector("#total-findings").textContent = report.summary.total_findings;
+
+  const alerts = report.alerts || [];
+  document.querySelector("#total-alerts").textContent =
+    report.summary.total_alerts ?? alerts.length;
+  alertsList.replaceChildren();
+
+  for (const alert of alerts) {
+    const card = document.createElement("article");
+    card.classList.add("security-alert");
+
+    const heading = document.createElement("h4");
+    heading.textContent = `[${alert.severity.toUpperCase()}] ${alert.rule_id}: ${alert.title}`;
+    card.appendChild(heading);
+    addAlertDetail(card, "Source IP", alert.source_ip);
+    addAlertDetail(card, "Occurrences", alert.occurrences.toString());
+    addAlertDetail(card, "Evidence lines", alert.evidence_lines.join(", "));
+    alertsList.appendChild(card);
+  }
+
+  securityAlerts.hidden = alerts.length === 0;
 
   const typeList = document.querySelector("#findings-by-type");
   typeList.replaceChildren();
