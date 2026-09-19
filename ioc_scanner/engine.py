@@ -4,10 +4,11 @@ import ipaddress
 import json
 import re
 from collections import Counter
-from collections.abc import Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping
 from dataclasses import dataclass, field
 
 IOC_CONFIG_FILE = "iocs.json"
+ALLOWLIST_CONFIG_FILE = "allowlist.json"
 
 
 @dataclass
@@ -23,6 +24,21 @@ def load_patterns() -> dict[str, str]:
     """Load IOC patterns from the default JSON configuration file."""
     with open(IOC_CONFIG_FILE, "r") as f:
         return json.load(f)
+
+
+def load_allowlist() -> dict[str, list[str]]:
+    """Load trusted IOC values from the default JSON allowlist."""
+    with open(ALLOWLIST_CONFIG_FILE, "r") as f:
+        return json.load(f)
+
+
+def is_allowlisted(
+    ioc_type: str,
+    value: str,
+    allowlist: Mapping[str, Collection[str]],
+) -> bool:
+    """Return whether an IOC exactly matches a trusted value."""
+    return value in allowlist.get(ioc_type, ())
 
 
 def is_valid_ipv4(value: str) -> bool:
@@ -59,13 +75,20 @@ def classify_ipv4(value: str) -> str:
     return "special-use"
 
 
-def find_iocs(line: str, patterns: Mapping[str, str]) -> list[tuple[str, str]]:
+def find_iocs(
+    line: str,
+    patterns: Mapping[str, str],
+    allowlist: Mapping[str, Collection[str]] | None = None,
+) -> list[tuple[str, str]]:
     """Return every IOC found in a single line of log text."""
     findings = []
+    allowlist = allowlist or {}
 
     for ioc_type, pattern in patterns.items():
         for match in re.findall(pattern, line):
             if ioc_type == "ipv4" and not is_valid_ipv4(match):
+                continue
+            if is_allowlisted(ioc_type, match, allowlist):
                 continue
             findings.append((ioc_type, match))
 
@@ -76,6 +99,7 @@ def scan_file(
     log_file: str,
     patterns: Mapping[str, str],
     stats: ScanStats | None = None,
+    allowlist: Mapping[str, Collection[str]] | None = None,
 ) -> Iterator[tuple[int, str, str, str]]:
     """Yield the line number, IOC type, match, and source line for each finding."""
     if stats is None:
@@ -85,7 +109,7 @@ def scan_file(
         for line_number, line in enumerate(f, start=1):
             stats.lines_scanned = line_number
             line = line.rstrip()
-            for ioc_type, match in find_iocs(line, patterns):
+            for ioc_type, match in find_iocs(line, patterns, allowlist):
                 stats.total_findings += 1
                 stats.findings_by_type[ioc_type] += 1
                 yield line_number, ioc_type, match, line
