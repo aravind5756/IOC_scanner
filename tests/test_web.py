@@ -43,8 +43,36 @@ class WebApplicationTests(unittest.TestCase):
         self.assertEqual(report["file"], "events.log")
         self.assertEqual(report["summary"]["lines_scanned"], 2)
         self.assertEqual(report["summary"]["total_findings"], 1)
+        self.assertEqual(report["summary"]["total_alerts"], 0)
         self.assertEqual(report["findings"][0]["value"], "10.0.0.5")
         self.assertEqual(report["findings"][0]["network_scope"], "private")
+        mock_load_patterns.assert_called_once_with()
+
+    @patch("ioc_scanner.web.load_patterns", return_value={"ipv4": IPV4_PATTERN})
+    def test_scan_upload_returns_failed_login_alert(self, mock_load_patterns):
+        failed_logins = b"\n".join(
+            [b"Failed login from 185.220.101.7"] * 5
+        )
+        response = self.client.post(
+            "/scan",
+            data={"log_file": (io.BytesIO(failed_logins), "auth.log")},
+            content_type="multipart/form-data",
+        )
+
+        report = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["summary"]["total_alerts"], 1)
+        self.assertEqual(
+            report["alerts"][0],
+            {
+                "rule_id": "AUTH-001",
+                "title": "Repeated failed login attempts",
+                "severity": "high",
+                "source_ip": "185.220.101.7",
+                "occurrences": 5,
+                "evidence_lines": [1, 2, 3, 4, 5],
+            },
+        )
         mock_load_patterns.assert_called_once_with()
 
     def test_scan_upload_requires_a_file(self):
