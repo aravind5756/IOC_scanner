@@ -18,6 +18,8 @@ class WebApplicationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"IOC Scanner", response.data)
+        self.assertIn(b"Allowlisted", response.data)
+        self.assertIn(b'id="allowlisted-findings"', response.data)
 
     def test_health_endpoint_reports_ok(self):
         response = self.client.get("/health")
@@ -106,6 +108,8 @@ class WebApplicationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(report["summary"]["total_findings"], 1)
         self.assertEqual(report["summary"]["findings_by_type"], {"ipv4": 1})
+        self.assertEqual(report["summary"]["allowlisted_findings"], 1)
+        self.assertEqual(report["summary"]["allowlisted_by_type"], {"ipv4": 1})
         self.assertEqual(report["findings"][0]["value"], "8.8.8.8")
         mock_load_patterns.assert_called_once_with()
         mock_load_allowlist.assert_called_once_with()

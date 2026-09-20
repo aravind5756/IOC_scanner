@@ -7,6 +7,8 @@ const findingsTableWrapper = document.querySelector("#findings-table-wrapper");
 const noFindings = document.querySelector("#no-findings");
 const securityAlerts = document.querySelector("#security-alerts");
 const alertsList = document.querySelector("#alerts-list");
+const allowlistedSummary = document.querySelector("#allowlisted-summary");
+const allowlistedByType = document.querySelector("#allowlisted-by-type");
 
 function addTableCell(row, value, className = "") {
   const cell = document.createElement("td");
@@ -29,6 +31,8 @@ function displayReport(report) {
   document.querySelector("#result-file").textContent = report.file;
   document.querySelector("#lines-scanned").textContent = report.summary.lines_scanned;
   document.querySelector("#total-findings").textContent = report.summary.total_findings;
+  document.querySelector("#allowlisted-findings").textContent =
+    report.summary.allowlisted_findings;
 
   const alerts = report.alerts || [];
   document.querySelector("#total-alerts").textContent =
@@ -58,6 +62,14 @@ function displayReport(report) {
     item.textContent = `${type}: ${count}`;
     typeList.appendChild(item);
   }
+
+  allowlistedByType.replaceChildren();
+  for (const [type, count] of Object.entries(report.summary.allowlisted_by_type)) {
+    const item = document.createElement("li");
+    item.textContent = `${type}: ${count}`;
+    allowlistedByType.appendChild(item);
+  }
+  allowlistedSummary.hidden = report.summary.allowlisted_findings === 0;
 
   const findingsBody = document.querySelector("#findings-body");
   findingsBody.replaceChildren();

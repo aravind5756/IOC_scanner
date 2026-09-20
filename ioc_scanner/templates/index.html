@@ -45,6 +45,10 @@
             <dd id="total-findings"></dd>
           </div>
           <div class="summary-card">
+            <dt>Allowlisted</dt>
+            <dd id="allowlisted-findings"></dd>
+          </div>
+          <div class="summary-card">
             <dt>Security alerts</dt>
             <dd id="total-alerts"></dd>
           </div>
@@ -57,6 +61,11 @@
 
         <h3>Findings by type</h3>
         <ul id="findings-by-type"></ul>
+
+        <div id="allowlisted-summary" hidden>
+          <h3>Allowlisted by type</h3>
+          <ul id="allowlisted-by-type"></ul>
+        </div>
 
         <h3>Detected indicators</h3>
         <p id="no-findings" hidden>No indicators were found in this file.</p>

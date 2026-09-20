@@ -219,7 +219,8 @@ button:disabled {
   color: #cbd9e9;
 }
 
-#findings-by-type {
+#findings-by-type,
+#allowlisted-by-type {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
@@ -227,7 +228,8 @@ button:disabled {
   list-style: none;
 }
 
-#findings-by-type li {
+#findings-by-type li,
+#allowlisted-by-type li {
   padding: 0.45rem 0.7rem;
   border: 1px solid #23625f;
   border-radius: 999px;
