@@ -87,8 +87,12 @@ def create_app() -> Flask:
             summary={
                 "lines_scanned": stats.lines_scanned,
                 "total_findings": stats.total_findings,
+                "allowlisted_findings": stats.allowlisted_findings,
                 "total_alerts": len(alerts),
                 "findings_by_type": dict(sorted(stats.findings_by_type.items())),
+                "allowlisted_by_type": dict(
+                    sorted(stats.allowlisted_by_type.items())
+                ),
             },
             findings=findings,
             alerts=[asdict(alert) for alert in alerts],
