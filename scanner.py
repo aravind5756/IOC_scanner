@@ -102,9 +102,13 @@ def main():
                 "summary": {
                     "lines_scanned": stats.lines_scanned,
                     "total_findings": stats.total_findings,
+                    "allowlisted_findings": stats.allowlisted_findings,
                     "total_alerts": len(alerts),
                     "findings_by_type": dict(
                         sorted(stats.findings_by_type.items())
+                    ),
+                    "allowlisted_by_type": dict(
+                        sorted(stats.allowlisted_by_type.items())
                     ),
                 },
                 "findings": json_findings,
@@ -117,6 +121,13 @@ def main():
             print(f"Lines scanned: {stats.lines_scanned}", file=output_stream)
             print(f"Total findings: {stats.total_findings}", file=output_stream)
             for ioc_type, count in sorted(stats.findings_by_type.items()):
+                print(f"  {ioc_type}: {count}", file=output_stream)
+
+            print(
+                f"\nAllowlisted findings: {stats.allowlisted_findings}",
+                file=output_stream,
+            )
+            for ioc_type, count in sorted(stats.allowlisted_by_type.items()):
                 print(f"  {ioc_type}: {count}", file=output_stream)
 
             print(f"\nSecurity alerts: {len(alerts)}", file=output_stream)
