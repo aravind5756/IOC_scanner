@@ -8,7 +8,13 @@ from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from .detections import detect_repeated_failed_logins
-from .engine import ScanStats, classify_ipv4, load_patterns, scan_file
+from .engine import (
+    ScanStats,
+    classify_ipv4,
+    load_allowlist,
+    load_patterns,
+    scan_file,
+)
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
@@ -50,6 +56,7 @@ def create_app() -> Flask:
 
         try:
             patterns = load_patterns()
+            allowlist = load_allowlist()
             with temporary_path.open("r") as log_file:
                 alerts = detect_repeated_failed_logins(
                     log_file, threshold=FAILED_LOGIN_THRESHOLD
@@ -59,7 +66,7 @@ def create_app() -> Flask:
             findings = []
 
             for line_number, ioc_type, value, context in scan_file(
-                str(temporary_path), patterns, stats
+                str(temporary_path), patterns, stats, allowlist
             ):
                 finding = {
                     "type": ioc_type,
