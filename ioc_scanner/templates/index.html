@@ -22,8 +22,22 @@
           method="post"
           enctype="multipart/form-data"
         >
-          <label for="log-file">Log file</label>
-          <input id="log-file" name="log_file" type="file" accept=".log,.txt" required>
+          <div class="form-field file-field">
+            <label for="log-file">Log file</label>
+            <input id="log-file" name="log_file" type="file" accept=".log,.txt" required>
+          </div>
+          <div class="form-field threshold-field">
+            <label for="failed-login-threshold">Failed-login alert threshold</label>
+            <input
+              id="failed-login-threshold"
+              name="failed_login_threshold"
+              type="number"
+              min="1"
+              step="1"
+              value="5"
+              required
+            >
+          </div>
           <button id="scan-button" type="submit">Scan file</button>
         </form>
 
@@ -51,6 +65,10 @@
           <div class="summary-card">
             <dt>Security alerts</dt>
             <dd id="total-alerts"></dd>
+          </div>
+          <div class="summary-card">
+            <dt>Alert threshold</dt>
+            <dd id="failed-login-threshold-used"></dd>
           </div>
         </dl>
 

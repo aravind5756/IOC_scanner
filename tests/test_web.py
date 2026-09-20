@@ -20,6 +20,7 @@ class WebApplicationTests(unittest.TestCase):
         self.assertIn(b"IOC Scanner", response.data)
         self.assertIn(b"Allowlisted", response.data)
         self.assertIn(b'id="allowlisted-findings"', response.data)
+        self.assertIn(b'name="failed_login_threshold"', response.data)
 
     def test_health_endpoint_reports_ok(self):
         response = self.client.get("/health")
@@ -71,6 +72,7 @@ class WebApplicationTests(unittest.TestCase):
         report = response.get_json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(report["summary"]["total_alerts"], 1)
+        self.assertEqual(report["summary"]["failed_login_threshold"], 5)
         self.assertEqual(
             report["alerts"][0],
             {
@@ -84,6 +86,48 @@ class WebApplicationTests(unittest.TestCase):
         )
         mock_load_patterns.assert_called_once_with()
         mock_load_allowlist.assert_called_once_with()
+
+    @patch("ioc_scanner.web.load_allowlist", return_value={})
+    @patch("ioc_scanner.web.load_patterns", return_value={})
+    def test_scan_upload_uses_custom_failed_login_threshold(
+        self, mock_load_patterns, mock_load_allowlist
+    ):
+        failed_logins = b"\n".join([b"Failed login from 185.220.101.7"] * 3)
+        response = self.client.post(
+            "/scan",
+            data={
+                "log_file": (io.BytesIO(failed_logins), "auth.log"),
+                "failed_login_threshold": "3",
+            },
+            content_type="multipart/form-data",
+        )
+
+        report = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["summary"]["failed_login_threshold"], 3)
+        self.assertEqual(report["summary"]["total_alerts"], 1)
+        mock_load_patterns.assert_called_once_with()
+        mock_load_allowlist.assert_called_once_with()
+
+    def test_scan_upload_rejects_invalid_failed_login_threshold(self):
+        response = self.client.post(
+            "/scan",
+            data={
+                "log_file": (io.BytesIO(b"example"), "auth.log"),
+                "failed_login_threshold": "0",
+            },
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.get_json(),
+            {
+                "error": (
+                    "The failed-login threshold must be a whole number of at least 1."
+                )
+            },
+        )
 
     @patch(
         "ioc_scanner.web.load_allowlist",

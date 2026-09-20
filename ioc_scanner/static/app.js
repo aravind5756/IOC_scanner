@@ -33,6 +33,8 @@ function displayReport(report) {
   document.querySelector("#total-findings").textContent = report.summary.total_findings;
   document.querySelector("#allowlisted-findings").textContent =
     report.summary.allowlisted_findings;
+  document.querySelector("#failed-login-threshold-used").textContent =
+    report.summary.failed_login_threshold;
 
   const alerts = report.alerts || [];
   document.querySelector("#total-alerts").textContent =

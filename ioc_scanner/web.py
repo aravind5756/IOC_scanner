@@ -18,7 +18,7 @@ from .engine import (
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
-FAILED_LOGIN_THRESHOLD = 5
+DEFAULT_FAILED_LOGIN_THRESHOLD = 5
 
 
 def create_app() -> Flask:
@@ -50,6 +50,18 @@ def create_app() -> Flask:
         if extension not in ALLOWED_EXTENSIONS:
             return jsonify(error="Only .log and .txt files are supported."), 400
 
+        threshold_value = request.form.get(
+            "failed_login_threshold", str(DEFAULT_FAILED_LOGIN_THRESHOLD)
+        )
+        try:
+            failed_login_threshold = int(threshold_value)
+        except (TypeError, ValueError):
+            failed_login_threshold = 0
+        if failed_login_threshold < 1:
+            return jsonify(
+                error="The failed-login threshold must be a whole number of at least 1."
+            ), 400
+
         with NamedTemporaryFile(delete=False, suffix=extension) as temporary_file:
             uploaded_file.save(temporary_file)
             temporary_path = Path(temporary_file.name)
@@ -59,7 +71,7 @@ def create_app() -> Flask:
             allowlist = load_allowlist()
             with temporary_path.open("r") as log_file:
                 alerts = detect_repeated_failed_logins(
-                    log_file, threshold=FAILED_LOGIN_THRESHOLD
+                    log_file, threshold=failed_login_threshold
                 )
 
             stats = ScanStats()
@@ -89,6 +101,7 @@ def create_app() -> Flask:
                 "total_findings": stats.total_findings,
                 "allowlisted_findings": stats.allowlisted_findings,
                 "total_alerts": len(alerts),
+                "failed_login_threshold": failed_login_threshold,
                 "findings_by_type": dict(sorted(stats.findings_by_type.items())),
                 "allowlisted_by_type": dict(
                     sorted(stats.allowlisted_by_type.items())
