@@ -100,6 +100,8 @@ class CLIReportTests(unittest.TestCase):
         self.assertNotIn("10.0.0.5", output)
         self.assertIn(MD5_VALUE, output)
         self.assertIn("Total findings: 1", output)
+        self.assertIn("Allowlisted findings: 1", output)
+        self.assertIn("  ipv4: 1", output)
 
     def test_json_report_excludes_allowlisted_findings(self):
         report = json.loads(
@@ -108,6 +110,8 @@ class CLIReportTests(unittest.TestCase):
 
         self.assertEqual(report["summary"]["total_findings"], 1)
         self.assertEqual(report["summary"]["findings_by_type"], {"md5_hash": 1})
+        self.assertEqual(report["summary"]["allowlisted_findings"], 1)
+        self.assertEqual(report["summary"]["allowlisted_by_type"], {"ipv4": 1})
         self.assertEqual(report["findings"][0]["value"], MD5_VALUE)
 
 
