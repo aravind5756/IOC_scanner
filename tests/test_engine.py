@@ -110,6 +110,8 @@ class AllowlistTests(unittest.TestCase):
         self.assertEqual(stats.lines_scanned, 2)
         self.assertEqual(stats.total_findings, 1)
         self.assertEqual(stats.findings_by_type, {"ipv4": 1})
+        self.assertEqual(stats.allowlisted_findings, 1)
+        self.assertEqual(stats.allowlisted_by_type, {"ipv4": 1})
 
 
 class FileScanningTests(unittest.TestCase):
