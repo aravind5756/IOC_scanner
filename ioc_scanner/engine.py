@@ -18,6 +18,8 @@ class ScanStats:
     lines_scanned: int = 0
     total_findings: int = 0
     findings_by_type: Counter[str] = field(default_factory=Counter)
+    allowlisted_findings: int = 0
+    allowlisted_by_type: Counter[str] = field(default_factory=Counter)
 
 
 def load_patterns() -> dict[str, str]:
@@ -104,12 +106,17 @@ def scan_file(
     """Yield the line number, IOC type, match, and source line for each finding."""
     if stats is None:
         stats = ScanStats()
+    allowlist = allowlist or {}
 
     with open(log_file, "r") as f:
         for line_number, line in enumerate(f, start=1):
             stats.lines_scanned = line_number
             line = line.rstrip()
-            for ioc_type, match in find_iocs(line, patterns, allowlist):
+            for ioc_type, match in find_iocs(line, patterns):
+                if is_allowlisted(ioc_type, match, allowlist):
+                    stats.allowlisted_findings += 1
+                    stats.allowlisted_by_type[ioc_type] += 1
+                    continue
                 stats.total_findings += 1
                 stats.findings_by_type[ioc_type] += 1
                 yield line_number, ioc_type, match, line
