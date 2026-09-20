@@ -17,7 +17,12 @@ PATTERNS = {"ipv4": IPV4_PATTERN, "md5_hash": MD5_PATTERN}
 
 class CLIReportTests(unittest.TestCase):
     def run_scanner(
-        self, output_format, log_content=None, threshold=None, allowlist=None
+        self,
+        output_format,
+        log_content=None,
+        threshold=None,
+        window_minutes=None,
+        allowlist=None,
     ):
         if log_content is None:
             log_content = f"Connection from 10.0.0.5\nHash {MD5_VALUE}\n"
@@ -32,6 +37,8 @@ class CLIReportTests(unittest.TestCase):
                 arguments.extend(["--format", "json"])
             if threshold is not None:
                 arguments.extend(["--failed-login-threshold", str(threshold)])
+            if window_minutes is not None:
+                arguments.extend(["--failed-login-window", str(window_minutes)])
 
             output = io.StringIO()
             with (
@@ -71,6 +78,19 @@ class CLIReportTests(unittest.TestCase):
         self.assertIn("Source IP: 185.220.101.7", output)
         self.assertIn("Evidence lines: 1, 2, 3", output)
 
+    def test_time_window_keeps_spread_out_attempts_below_alert_threshold(self):
+        log_content = (
+            "2026-08-10 09:00:00 Failed login from 185.220.101.7\n"
+            "2026-08-10 09:10:00 Failed login from 185.220.101.7\n"
+        )
+
+        output = self.run_scanner(
+            "text", log_content, threshold=2, window_minutes=5
+        )
+
+        self.assertIn("Security alerts: 0", output)
+        self.assertIn("Failed-login rule: 2 attempts within 5 minutes", output)
+
     def test_json_report_includes_failed_login_alert(self):
         log_content = (
             "Failed login from 185.220.101.7\n"
@@ -89,6 +109,7 @@ class CLIReportTests(unittest.TestCase):
                 "source_ip": "185.220.101.7",
                 "occurrences": 2,
                 "evidence_lines": [1, 2],
+                "window_minutes": None,
             },
         )
 

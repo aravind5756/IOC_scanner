@@ -35,6 +35,8 @@ function displayReport(report) {
     report.summary.allowlisted_findings;
   document.querySelector("#failed-login-threshold-used").textContent =
     report.summary.failed_login_threshold;
+  document.querySelector("#failed-login-window-used").textContent =
+    report.summary.failed_login_window_minutes;
 
   const alerts = report.alerts || [];
   document.querySelector("#total-alerts").textContent =
@@ -51,6 +53,9 @@ function displayReport(report) {
     addAlertDetail(card, "Source IP", alert.source_ip);
     addAlertDetail(card, "Occurrences", alert.occurrences.toString());
     addAlertDetail(card, "Evidence lines", alert.evidence_lines.join(", "));
+    if (alert.window_minutes !== null) {
+      addAlertDetail(card, "Detection window", `${alert.window_minutes} minutes`);
+    }
     alertsList.appendChild(card);
   }
 

@@ -26,11 +26,23 @@
             <label for="log-file">Log file</label>
             <input id="log-file" name="log_file" type="file" accept=".log,.txt" required>
           </div>
-          <div class="form-field threshold-field">
+          <div class="form-field rule-setting-field">
             <label for="failed-login-threshold">Failed-login alert threshold</label>
             <input
               id="failed-login-threshold"
               name="failed_login_threshold"
+              type="number"
+              min="1"
+              step="1"
+              value="5"
+              required
+            >
+          </div>
+          <div class="form-field rule-setting-field">
+            <label for="failed-login-window">Detection window (minutes)</label>
+            <input
+              id="failed-login-window"
+              name="failed_login_window"
               type="number"
               min="1"
               step="1"
@@ -69,6 +81,10 @@
           <div class="summary-card">
             <dt>Alert threshold</dt>
             <dd id="failed-login-threshold-used"></dd>
+          </div>
+          <div class="summary-card">
+            <dt>Detection window</dt>
+            <dd><span id="failed-login-window-used"></span> min</dd>
           </div>
         </dl>
 

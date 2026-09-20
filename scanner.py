@@ -48,6 +48,13 @@ def parse_args():
         default=5,
         help="Failed login attempts required for an alert (default: 5)",
     )
+    parser.add_argument(
+        "--failed-login-window",
+        type=positive_integer,
+        default=5,
+        metavar="MINUTES",
+        help="Time window for failed login alerts (default: 5 minutes)",
+    )
     return parser.parse_args()
 
 
@@ -61,7 +68,9 @@ def main():
     allowlist = load_allowlist()
     with open(args.log_file, "r") as log_file:
         alerts = detect_repeated_failed_logins(
-            log_file, threshold=args.failed_login_threshold
+            log_file,
+            threshold=args.failed_login_threshold,
+            window_minutes=args.failed_login_window,
         )
 
     stats = ScanStats()
@@ -104,6 +113,8 @@ def main():
                     "total_findings": stats.total_findings,
                     "allowlisted_findings": stats.allowlisted_findings,
                     "total_alerts": len(alerts),
+                    "failed_login_threshold": args.failed_login_threshold,
+                    "failed_login_window_minutes": args.failed_login_window,
                     "findings_by_type": dict(
                         sorted(stats.findings_by_type.items())
                     ),
@@ -131,6 +142,11 @@ def main():
                 print(f"  {ioc_type}: {count}", file=output_stream)
 
             print(f"\nSecurity alerts: {len(alerts)}", file=output_stream)
+            print(
+                f"Failed-login rule: {args.failed_login_threshold} attempts "
+                f"within {args.failed_login_window} minutes",
+                file=output_stream,
+            )
             for alert in alerts:
                 print(
                     f"[{alert.severity.upper()}] {alert.rule_id}: {alert.title}",
@@ -140,6 +156,11 @@ def main():
                 print(f"  Occurrences: {alert.occurrences}", file=output_stream)
                 evidence = ", ".join(str(line) for line in alert.evidence_lines)
                 print(f"  Evidence lines: {evidence}", file=output_stream)
+                if alert.window_minutes is not None:
+                    print(
+                        f"  Detection window: {alert.window_minutes} minutes",
+                        file=output_stream,
+                    )
 
     if args.output:
         print(f"Report written to {args.output}")

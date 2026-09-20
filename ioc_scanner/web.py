@@ -19,6 +19,16 @@ from .engine import (
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
 DEFAULT_FAILED_LOGIN_THRESHOLD = 5
+DEFAULT_FAILED_LOGIN_WINDOW = 5
+
+
+def parse_positive_integer(value: str | None) -> int | None:
+    """Parse a positive whole number submitted by a web form."""
+    try:
+        number = int(value) if value is not None else 0
+    except ValueError:
+        return None
+    return number if number >= 1 else None
 
 
 def create_app() -> Flask:
@@ -50,16 +60,24 @@ def create_app() -> Flask:
         if extension not in ALLOWED_EXTENSIONS:
             return jsonify(error="Only .log and .txt files are supported."), 400
 
-        threshold_value = request.form.get(
-            "failed_login_threshold", str(DEFAULT_FAILED_LOGIN_THRESHOLD)
+        failed_login_threshold = parse_positive_integer(
+            request.form.get(
+                "failed_login_threshold", str(DEFAULT_FAILED_LOGIN_THRESHOLD)
+            )
         )
-        try:
-            failed_login_threshold = int(threshold_value)
-        except (TypeError, ValueError):
-            failed_login_threshold = 0
-        if failed_login_threshold < 1:
+        if failed_login_threshold is None:
             return jsonify(
                 error="The failed-login threshold must be a whole number of at least 1."
+            ), 400
+
+        failed_login_window = parse_positive_integer(
+            request.form.get(
+                "failed_login_window", str(DEFAULT_FAILED_LOGIN_WINDOW)
+            )
+        )
+        if failed_login_window is None:
+            return jsonify(
+                error="The failed-login window must be a whole number of at least 1 minute."
             ), 400
 
         with NamedTemporaryFile(delete=False, suffix=extension) as temporary_file:
@@ -71,7 +89,9 @@ def create_app() -> Flask:
             allowlist = load_allowlist()
             with temporary_path.open("r") as log_file:
                 alerts = detect_repeated_failed_logins(
-                    log_file, threshold=failed_login_threshold
+                    log_file,
+                    threshold=failed_login_threshold,
+                    window_minutes=failed_login_window,
                 )
 
             stats = ScanStats()
@@ -102,6 +122,7 @@ def create_app() -> Flask:
                 "allowlisted_findings": stats.allowlisted_findings,
                 "total_alerts": len(alerts),
                 "failed_login_threshold": failed_login_threshold,
+                "failed_login_window_minutes": failed_login_window,
                 "findings_by_type": dict(sorted(stats.findings_by_type.items())),
                 "allowlisted_by_type": dict(
                     sorted(stats.allowlisted_by_type.items())

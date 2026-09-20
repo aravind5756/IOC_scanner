@@ -21,6 +21,36 @@ class RepeatedFailedLoginTests(unittest.TestCase):
         self.assertEqual(alert.source_ip, "185.220.101.7")
         self.assertEqual(alert.occurrences, 3)
         self.assertEqual(alert.evidence_lines, (1, 2, 3))
+        self.assertIsNone(alert.window_minutes)
+
+    def test_alerts_for_attempts_inside_the_time_window(self):
+        lines = [
+            "2026-08-10 09:00:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:02:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:04:00 Failed login from 185.220.101.7",
+        ]
+
+        alerts = detect_repeated_failed_logins(
+            lines, threshold=3, window_minutes=5
+        )
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].occurrences, 3)
+        self.assertEqual(alerts[0].evidence_lines, (1, 2, 3))
+        self.assertEqual(alerts[0].window_minutes, 5)
+
+    def test_does_not_combine_attempts_spread_outside_the_time_window(self):
+        lines = [
+            "2026-08-10 09:00:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:10:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:20:00 Failed login from 185.220.101.7",
+        ]
+
+        alerts = detect_repeated_failed_logins(
+            lines, threshold=3, window_minutes=5
+        )
+
+        self.assertEqual(alerts, [])
 
     def test_does_not_alert_below_threshold(self):
         lines = [
@@ -54,6 +84,10 @@ class RepeatedFailedLoginTests(unittest.TestCase):
     def test_rejects_thresholds_below_one(self):
         with self.assertRaisesRegex(ValueError, "threshold must be at least 1"):
             detect_repeated_failed_logins([], threshold=0)
+
+    def test_rejects_time_windows_below_one_minute(self):
+        with self.assertRaisesRegex(ValueError, "window must be at least 1 minute"):
+            detect_repeated_failed_logins([], window_minutes=0)
 
 
 if __name__ == "__main__":
