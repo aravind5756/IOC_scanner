@@ -16,9 +16,13 @@ PATTERNS = {"ipv4": IPV4_PATTERN, "md5_hash": MD5_PATTERN}
 
 
 class CLIReportTests(unittest.TestCase):
-    def run_scanner(self, output_format, log_content=None, threshold=None):
+    def run_scanner(
+        self, output_format, log_content=None, threshold=None, allowlist=None
+    ):
         if log_content is None:
             log_content = f"Connection from 10.0.0.5\nHash {MD5_VALUE}\n"
+        if allowlist is None:
+            allowlist = {}
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             log_file = Path(temporary_directory) / "events.log"
@@ -33,6 +37,7 @@ class CLIReportTests(unittest.TestCase):
             with (
                 patch.object(sys, "argv", arguments),
                 patch("scanner.load_patterns", return_value=PATTERNS),
+                patch("scanner.load_allowlist", return_value=allowlist),
                 redirect_stdout(output),
             ):
                 scanner.main()
@@ -86,6 +91,24 @@ class CLIReportTests(unittest.TestCase):
                 "evidence_lines": [1, 2],
             },
         )
+
+    def test_text_report_excludes_allowlisted_findings(self):
+        output = self.run_scanner(
+            "text", allowlist={"ipv4": ["10.0.0.5"]}
+        )
+
+        self.assertNotIn("10.0.0.5", output)
+        self.assertIn(MD5_VALUE, output)
+        self.assertIn("Total findings: 1", output)
+
+    def test_json_report_excludes_allowlisted_findings(self):
+        report = json.loads(
+            self.run_scanner("json", allowlist={"ipv4": ["10.0.0.5"]})
+        )
+
+        self.assertEqual(report["summary"]["total_findings"], 1)
+        self.assertEqual(report["summary"]["findings_by_type"], {"md5_hash": 1})
+        self.assertEqual(report["findings"][0]["value"], MD5_VALUE)
 
 
 if __name__ == "__main__":
