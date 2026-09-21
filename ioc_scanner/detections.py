@@ -10,6 +10,7 @@ from .engine import is_valid_ipv4
 
 IPV4_PATTERN = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
 FAILED_LOGIN_TERMS = ("failed login", "failed password")
+SUCCESSFUL_LOGIN_TERMS = ("successful login", "accepted password", "logged in")
 TIMESTAMP_PATTERN = re.compile(
     r"^(?P<timestamp>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?)"
 )
@@ -125,5 +126,75 @@ def detect_repeated_failed_logins(
                 window_minutes=alert_window,
             )
         )
+
+    return alerts
+
+
+def detect_success_after_failed_logins(
+    lines: Iterable[str], threshold: int = 5, window_minutes: int = 5
+) -> list[SecurityAlert]:
+    """Detect successful logins that follow repeated failures from one IP."""
+    if threshold < 1:
+        raise ValueError("The failed-login threshold must be at least 1.")
+    if window_minutes < 1:
+        raise ValueError("The failed-login window must be at least 1 minute.")
+
+    events_by_ip: defaultdict[str, list[tuple[int, datetime, str]]] = defaultdict(list)
+
+    for line_number, line in enumerate(lines, start=1):
+        timestamp = parse_log_timestamp(line)
+        if timestamp is None:
+            continue
+
+        normalised_line = line.lower()
+        if any(term in normalised_line for term in FAILED_LOGIN_TERMS):
+            event_type = "failure"
+        elif any(term in normalised_line for term in SUCCESSFUL_LOGIN_TERMS):
+            event_type = "success"
+        else:
+            continue
+
+        addresses = {
+            candidate
+            for candidate in re.findall(IPV4_PATTERN, line)
+            if is_valid_ipv4(candidate)
+        }
+        for address in addresses:
+            events_by_ip[address].append((line_number, timestamp, event_type))
+
+    alerts = []
+    window = timedelta(minutes=window_minutes)
+    for address, events in sorted(events_by_ip.items()):
+        failures: list[tuple[int, datetime]] = []
+        for line_number, timestamp, event_type in sorted(
+            events, key=lambda event: event[1]
+        ):
+            if event_type == "failure":
+                failures.append((line_number, timestamp))
+                continue
+
+            recent_failures = [
+                failure
+                for failure in failures
+                if timestamp - failure[1] <= window
+            ]
+            if len(recent_failures) < threshold:
+                continue
+
+            evidence_lines = tuple(
+                sorted([failure[0] for failure in recent_failures] + [line_number])
+            )
+            alerts.append(
+                SecurityAlert(
+                    rule_id="AUTH-002",
+                    title="Successful login following repeated failures",
+                    severity="critical",
+                    source_ip=address,
+                    occurrences=len(recent_failures),
+                    evidence_lines=evidence_lines,
+                    window_minutes=window_minutes,
+                )
+            )
+            break
 
     return alerts
