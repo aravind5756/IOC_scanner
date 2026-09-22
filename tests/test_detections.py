@@ -1,6 +1,9 @@
 import unittest
 
-from ioc_scanner.detections import detect_repeated_failed_logins
+from ioc_scanner.detections import (
+    detect_repeated_failed_logins,
+    detect_success_after_failed_logins,
+)
 
 
 class RepeatedFailedLoginTests(unittest.TestCase):
@@ -88,6 +91,65 @@ class RepeatedFailedLoginTests(unittest.TestCase):
     def test_rejects_time_windows_below_one_minute(self):
         with self.assertRaisesRegex(ValueError, "window must be at least 1 minute"):
             detect_repeated_failed_logins([], window_minutes=0)
+
+
+class SuccessfulLoginAfterFailuresTests(unittest.TestCase):
+    def test_alerts_when_a_success_follows_repeated_failures(self):
+        lines = [
+            "2026-08-10 09:00:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:01:00 Failed password from 185.220.101.7",
+            "2026-08-10 09:02:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:03:00 Accepted password from 185.220.101.7",
+        ]
+
+        alerts = detect_success_after_failed_logins(
+            lines, threshold=3, window_minutes=5
+        )
+
+        self.assertEqual(len(alerts), 1)
+        alert = alerts[0]
+        self.assertEqual(alert.rule_id, "AUTH-002")
+        self.assertEqual(alert.title, "Successful login following repeated failures")
+        self.assertEqual(alert.severity, "critical")
+        self.assertEqual(alert.source_ip, "185.220.101.7")
+        self.assertEqual(alert.occurrences, 3)
+        self.assertEqual(alert.evidence_lines, (1, 2, 3, 4))
+        self.assertEqual(alert.window_minutes, 5)
+
+    def test_does_not_alert_when_failures_are_outside_the_window(self):
+        lines = [
+            "2026-08-10 08:00:00 Failed login from 185.220.101.7",
+            "2026-08-10 08:01:00 Failed login from 185.220.101.7",
+            "2026-08-10 09:00:00 Successful login from 185.220.101.7",
+        ]
+
+        alerts = detect_success_after_failed_logins(
+            lines, threshold=2, window_minutes=5
+        )
+
+        self.assertEqual(alerts, [])
+
+    def test_requires_timestamps_to_correlate_login_events(self):
+        lines = [
+            "Failed login from 185.220.101.7",
+            "Failed login from 185.220.101.7",
+            "Successful login from 185.220.101.7",
+        ]
+
+        alerts = detect_success_after_failed_logins(lines, threshold=2)
+
+        self.assertEqual(alerts, [])
+
+    def test_rejects_invalid_rule_settings(self):
+        invalid_settings = (
+            ({"threshold": 0}, "threshold must be at least 1"),
+            ({"window_minutes": 0}, "window must be at least 1 minute"),
+        )
+
+        for settings, message in invalid_settings:
+            with self.subTest(settings=settings):
+                with self.assertRaisesRegex(ValueError, message):
+                    detect_success_after_failed_logins([], **settings)
 
 
 if __name__ == "__main__":
