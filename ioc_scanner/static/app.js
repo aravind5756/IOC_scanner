@@ -45,7 +45,7 @@ function displayReport(report) {
 
   for (const alert of alerts) {
     const card = document.createElement("article");
-    card.classList.add("security-alert");
+    card.classList.add("security-alert", `severity-${alert.severity}`);
 
     const heading = document.createElement("h4");
     heading.textContent = `[${alert.severity.toUpperCase()}] ${alert.rule_id}: ${alert.title}`;

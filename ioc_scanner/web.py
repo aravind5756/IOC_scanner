@@ -7,7 +7,10 @@ from tempfile import NamedTemporaryFile
 from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from .detections import detect_repeated_failed_logins
+from .detections import (
+    detect_repeated_failed_logins,
+    detect_success_after_failed_logins,
+)
 from .engine import (
     ScanStats,
     classify_ipv4,
@@ -88,11 +91,16 @@ def create_app() -> Flask:
             patterns = load_patterns()
             allowlist = load_allowlist()
             with temporary_path.open("r") as log_file:
-                alerts = detect_repeated_failed_logins(
-                    log_file,
-                    threshold=failed_login_threshold,
-                    window_minutes=failed_login_window,
-                )
+                log_lines = log_file.readlines()
+
+            detection_settings = {
+                "threshold": failed_login_threshold,
+                "window_minutes": failed_login_window,
+            }
+            alerts = detect_repeated_failed_logins(log_lines, **detection_settings)
+            alerts.extend(
+                detect_success_after_failed_logins(log_lines, **detection_settings)
+            )
 
             stats = ScanStats()
             findings = []

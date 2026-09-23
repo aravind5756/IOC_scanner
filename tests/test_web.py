@@ -121,6 +121,43 @@ class WebApplicationTests(unittest.TestCase):
         mock_load_patterns.assert_called_once_with()
         mock_load_allowlist.assert_called_once_with()
 
+    @patch("ioc_scanner.web.load_allowlist", return_value={})
+    @patch("ioc_scanner.web.load_patterns", return_value={})
+    def test_scan_upload_returns_success_after_failures_alert(
+        self, mock_load_patterns, mock_load_allowlist
+    ):
+        authentication_events = b"\n".join(
+            [
+                b"2026-08-10 09:00:00 Failed login from 185.220.101.7",
+                b"2026-08-10 09:01:00 Failed login from 185.220.101.7",
+                b"2026-08-10 09:02:00 Accepted password from 185.220.101.7",
+            ]
+        )
+        response = self.client.post(
+            "/scan",
+            data={
+                "log_file": (io.BytesIO(authentication_events), "auth.log"),
+                "failed_login_threshold": "2",
+                "failed_login_window": "5",
+            },
+            content_type="multipart/form-data",
+        )
+
+        report = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["summary"]["total_alerts"], 2)
+        self.assertEqual(
+            [alert["rule_id"] for alert in report["alerts"]],
+            ["AUTH-001", "AUTH-002"],
+        )
+        correlated_alert = report["alerts"][1]
+        self.assertEqual(correlated_alert["severity"], "critical")
+        self.assertEqual(correlated_alert["source_ip"], "185.220.101.7")
+        self.assertEqual(correlated_alert["evidence_lines"], [1, 2, 3])
+        self.assertEqual(correlated_alert["window_minutes"], 5)
+        mock_load_patterns.assert_called_once_with()
+        mock_load_allowlist.assert_called_once_with()
+
     def test_scan_upload_rejects_invalid_failed_login_threshold(self):
         response = self.client.post(
             "/scan",
