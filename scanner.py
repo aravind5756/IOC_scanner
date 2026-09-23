@@ -9,6 +9,7 @@ from ioc_scanner import (
     ScanStats,
     classify_ipv4,
     detect_repeated_failed_logins,
+    detect_success_after_failed_logins,
     load_allowlist,
     load_patterns,
     scan_file,
@@ -67,11 +68,16 @@ def main():
     patterns = load_patterns()
     allowlist = load_allowlist()
     with open(args.log_file, "r") as log_file:
-        alerts = detect_repeated_failed_logins(
-            log_file,
-            threshold=args.failed_login_threshold,
-            window_minutes=args.failed_login_window,
-        )
+        log_lines = log_file.readlines()
+
+    detection_settings = {
+        "threshold": args.failed_login_threshold,
+        "window_minutes": args.failed_login_window,
+    }
+    alerts = detect_repeated_failed_logins(log_lines, **detection_settings)
+    alerts.extend(
+        detect_success_after_failed_logins(log_lines, **detection_settings)
+    )
 
     stats = ScanStats()
     json_findings = []

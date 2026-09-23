@@ -113,6 +113,48 @@ class CLIReportTests(unittest.TestCase):
             },
         )
 
+    def test_text_report_displays_success_after_failures_alert(self):
+        log_content = (
+            "2026-08-10 09:00:00 Failed login from 185.220.101.7\n"
+            "2026-08-10 09:01:00 Failed login from 185.220.101.7\n"
+            "2026-08-10 09:02:00 Accepted password from 185.220.101.7\n"
+        )
+
+        output = self.run_scanner(
+            "text", log_content, threshold=2, window_minutes=5
+        )
+
+        self.assertIn("Security alerts: 2", output)
+        self.assertIn(
+            "[CRITICAL] AUTH-002: Successful login following repeated failures",
+            output,
+        )
+        self.assertIn("Evidence lines: 1, 2, 3", output)
+
+    def test_json_report_includes_both_authentication_alerts(self):
+        log_content = (
+            "2026-08-10 09:00:00 Failed login from 185.220.101.7\n"
+            "2026-08-10 09:01:00 Failed login from 185.220.101.7\n"
+            "2026-08-10 09:02:00 Successful login from 185.220.101.7\n"
+        )
+
+        report = json.loads(
+            self.run_scanner(
+                "json", log_content, threshold=2, window_minutes=5
+            )
+        )
+
+        self.assertEqual(report["summary"]["total_alerts"], 2)
+        self.assertEqual(
+            [alert["rule_id"] for alert in report["alerts"]],
+            ["AUTH-001", "AUTH-002"],
+        )
+        correlated_alert = report["alerts"][1]
+        self.assertEqual(correlated_alert["severity"], "critical")
+        self.assertEqual(correlated_alert["occurrences"], 2)
+        self.assertEqual(correlated_alert["evidence_lines"], [1, 2, 3])
+        self.assertEqual(correlated_alert["window_minutes"], 5)
+
     def test_text_report_excludes_allowlisted_findings(self):
         output = self.run_scanner(
             "text", allowlist={"ipv4": ["10.0.0.5"]}

@@ -1,6 +1,8 @@
 2026-08-10 09:12:01 INFO User admin logged in from 10.0.0.5
 2026-08-10 09:14:33 WARNING Failed login attempt for user root from 185.220.101.7
 2026-08-10 09:15:02 INFO File downloaded: invoice.pdf
+2026-08-10 09:15:20 WARNING Failed password for user root from 185.220.101.7
+2026-08-10 09:16:10 INFO Accepted password for user root from 185.220.101.7
 2026-08-10 09:16:45 ERROR Connection refused to 45.155.205.233
 2026-08-10 09:18:10 WARNING Malware signature match: d41d8cd98f00b204e9800998ecf8427e
 2026-08-10 09:20:14 WARNING Suspicious email received from billing@malicious-example.com
