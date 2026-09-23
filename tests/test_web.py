@@ -1,3 +1,4 @@
+import hashlib
 import io
 import unittest
 from unittest.mock import patch
@@ -19,6 +20,7 @@ class WebApplicationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"IOC Scanner", response.data)
         self.assertIn(b"Allowlisted", response.data)
+        self.assertIn(b"Evidence details", response.data)
         self.assertIn(b'id="allowlisted-findings"', response.data)
         self.assertIn(b'name="failed_login_threshold"', response.data)
         self.assertIn(b'name="failed_login_window"', response.data)
@@ -34,11 +36,12 @@ class WebApplicationTests(unittest.TestCase):
     def test_scan_upload_returns_findings_and_network_scope(
         self, mock_load_patterns, mock_load_allowlist
     ):
+        log_content = b"Connection from 10.0.0.5\nNo indicator here\n"
         response = self.client.post(
             "/scan",
             data={
                 "log_file": (
-                    io.BytesIO(b"Connection from 10.0.0.5\nNo indicator here\n"),
+                    io.BytesIO(log_content),
                     "events.log",
                 )
             },
@@ -51,6 +54,12 @@ class WebApplicationTests(unittest.TestCase):
         self.assertEqual(report["summary"]["lines_scanned"], 2)
         self.assertEqual(report["summary"]["total_findings"], 1)
         self.assertEqual(report["summary"]["total_alerts"], 0)
+        self.assertEqual(report["metadata"]["file_name"], "events.log")
+        self.assertEqual(report["metadata"]["size_bytes"], len(log_content))
+        self.assertEqual(
+            report["metadata"]["sha256"], hashlib.sha256(log_content).hexdigest()
+        )
+        self.assertTrue(report["metadata"]["scanned_at_utc"].endswith("Z"))
         self.assertEqual(report["findings"][0]["value"], "10.0.0.5")
         self.assertEqual(report["findings"][0]["network_scope"], "private")
         mock_load_patterns.assert_called_once_with()

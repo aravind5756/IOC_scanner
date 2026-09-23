@@ -1,3 +1,4 @@
+import hashlib
 import io
 import json
 import sys
@@ -31,7 +32,7 @@ class CLIReportTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             log_file = Path(temporary_directory) / "events.log"
-            log_file.write_text(log_content, encoding="utf-8")
+            log_file.write_bytes(log_content.encode("utf-8"))
             arguments = ["scanner.py", str(log_file)]
             if output_format == "json":
                 arguments.extend(["--format", "json"])
@@ -63,6 +64,19 @@ class CLIReportTests(unittest.TestCase):
         ipv4_finding, hash_finding = report["findings"]
         self.assertEqual(ipv4_finding["network_scope"], "private")
         self.assertNotIn("network_scope", hash_finding)
+
+    def test_reports_evidence_metadata(self):
+        log_content = "Connection from 10.0.0.5\n"
+
+        report = json.loads(self.run_scanner("json", log_content))
+
+        metadata = report["metadata"]
+        self.assertEqual(metadata["file_name"], "events.log")
+        self.assertEqual(metadata["size_bytes"], len(log_content.encode()))
+        self.assertEqual(
+            metadata["sha256"], hashlib.sha256(log_content.encode()).hexdigest()
+        )
+        self.assertTrue(metadata["scanned_at_utc"].endswith("Z"))
 
     def test_text_report_displays_failed_login_alert(self):
         log_content = (

@@ -217,6 +217,17 @@ button:disabled {
   font-weight: 800;
 }
 
+.evidence-details {
+  padding: 0.25rem 1rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  background: rgba(56, 217, 197, 0.04);
+}
+
+.evidence-details p {
+  margin: 0.45rem 0;
+  overflow-wrap: anywhere;
+}
+
 #alerts-list {
   display: grid;
   gap: 0.75rem;

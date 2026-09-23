@@ -18,6 +18,7 @@ from .engine import (
     load_patterns,
     scan_file,
 )
+from .reporting import collect_scan_metadata
 
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
@@ -90,6 +91,9 @@ def create_app() -> Flask:
         try:
             patterns = load_patterns()
             allowlist = load_allowlist()
+            metadata = collect_scan_metadata(
+                temporary_path, display_name=uploaded_file.filename
+            )
             with temporary_path.open("r") as log_file:
                 log_lines = log_file.readlines()
 
@@ -124,6 +128,7 @@ def create_app() -> Flask:
 
         return jsonify(
             file=uploaded_file.filename,
+            metadata=asdict(metadata),
             summary={
                 "lines_scanned": stats.lines_scanned,
                 "total_findings": stats.total_findings,

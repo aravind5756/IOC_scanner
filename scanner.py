@@ -8,6 +8,7 @@ from pathlib import Path
 from ioc_scanner import (
     ScanStats,
     classify_ipv4,
+    collect_scan_metadata,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
     load_allowlist,
@@ -67,6 +68,7 @@ def main():
 
     patterns = load_patterns()
     allowlist = load_allowlist()
+    metadata = collect_scan_metadata(args.log_file)
     with open(args.log_file, "r") as log_file:
         log_lines = log_file.readlines()
 
@@ -114,6 +116,7 @@ def main():
         if args.output_format == "json":
             report = {
                 "file": args.log_file,
+                "metadata": asdict(metadata),
                 "summary": {
                     "lines_scanned": stats.lines_scanned,
                     "total_findings": stats.total_findings,
@@ -135,6 +138,9 @@ def main():
         else:
             print("\nScan summary", file=output_stream)
             print(f"File: {args.log_file}", file=output_stream)
+            print(f"File size: {metadata.size_bytes} bytes", file=output_stream)
+            print(f"SHA-256: {metadata.sha256}", file=output_stream)
+            print(f"Scanned at: {metadata.scanned_at_utc}", file=output_stream)
             print(f"Lines scanned: {stats.lines_scanned}", file=output_stream)
             print(f"Total findings: {stats.total_findings}", file=output_stream)
             for ioc_type, count in sorted(stats.findings_by_type.items()):

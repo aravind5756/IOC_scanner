@@ -37,6 +37,11 @@ function displayReport(report) {
     report.summary.failed_login_threshold;
   document.querySelector("#failed-login-window-used").textContent =
     report.summary.failed_login_window_minutes;
+  document.querySelector("#evidence-size").textContent =
+    `${report.metadata.size_bytes.toLocaleString()} bytes`;
+  document.querySelector("#evidence-sha256").textContent = report.metadata.sha256;
+  document.querySelector("#evidence-scanned-at").textContent =
+    report.metadata.scanned_at_utc;
 
   const alerts = report.alerts || [];
   document.querySelector("#total-alerts").textContent =
