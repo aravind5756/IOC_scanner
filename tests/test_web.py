@@ -21,6 +21,8 @@ class WebApplicationTests(unittest.TestCase):
         self.assertIn(b"IOC Scanner", response.data)
         self.assertIn(b"Allowlisted", response.data)
         self.assertIn(b"Evidence details", response.data)
+        self.assertIn(b"Download JSON report", response.data)
+        self.assertIn(b'id="download-report"', response.data)
         self.assertIn(b'id="allowlisted-findings"', response.data)
         self.assertIn(b'name="failed_login_threshold"', response.data)
         self.assertIn(b'name="failed_login_window"', response.data)

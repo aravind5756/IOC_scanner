@@ -228,6 +228,22 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.report-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+#download-report {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+}
+
+#download-report:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
 #alerts-list {
   display: grid;
   gap: 0.75rem;

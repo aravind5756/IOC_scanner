@@ -9,6 +9,14 @@ const securityAlerts = document.querySelector("#security-alerts");
 const alertsList = document.querySelector("#alerts-list");
 const allowlistedSummary = document.querySelector("#allowlisted-summary");
 const allowlistedByType = document.querySelector("#allowlisted-by-type");
+const downloadReportButton = document.querySelector("#download-report");
+let latestReport = null;
+
+function reportDownloadName(fileName) {
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]+/g, "-");
+  const baseName = safeName.replace(/\.[^.]+$/, "") || "scan";
+  return `${baseName}-ioc-report.json`;
+}
 
 function addTableCell(row, value, className = "") {
   const cell = document.createElement("td");
@@ -28,6 +36,7 @@ function addAlertDetail(card, label, value) {
 }
 
 function displayReport(report) {
+  latestReport = report;
   document.querySelector("#result-file").textContent = report.file;
   document.querySelector("#lines-scanned").textContent = report.summary.lines_scanned;
   document.querySelector("#total-findings").textContent = report.summary.total_findings;
@@ -103,8 +112,24 @@ function displayReport(report) {
   const hasFindings = report.findings.length > 0;
   findingsTableWrapper.hidden = !hasFindings;
   noFindings.hidden = hasFindings;
+  downloadReportButton.hidden = false;
   scanResults.hidden = false;
 }
+
+downloadReportButton.addEventListener("click", () => {
+  if (!latestReport) {
+    return;
+  }
+
+  const reportData = JSON.stringify(latestReport, null, 2);
+  const reportBlob = new Blob([reportData], { type: "application/json" });
+  const downloadUrl = URL.createObjectURL(reportBlob);
+  const downloadLink = document.createElement("a");
+  downloadLink.href = downloadUrl;
+  downloadLink.download = reportDownloadName(latestReport.metadata.file_name);
+  downloadLink.click();
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+});
 
 scanForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -112,6 +137,8 @@ scanForm.addEventListener("submit", async (event) => {
   scanStatus.textContent = "Scanning file...";
   scanError.hidden = true;
   scanResults.hidden = true;
+  downloadReportButton.hidden = true;
+  latestReport = null;
 
   try {
     const response = await fetch(scanForm.action, {
