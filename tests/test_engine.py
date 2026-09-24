@@ -3,11 +3,14 @@ import unittest
 from pathlib import Path
 
 from ioc_scanner.engine import (
+    ConfigurationError,
     ScanStats,
     classify_ipv4,
     find_iocs,
     is_allowlisted,
     is_valid_ipv4,
+    load_allowlist,
+    load_patterns,
     scan_file,
 )
 
@@ -15,6 +18,39 @@ IPV4_PATTERN = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
 MD5_PATTERN = r"\b[a-fA-F0-9]{32}\b"
 MD5_VALUE = "d41d8cd98f00b204e9800998ecf8427e"
 
+
+class ConfigurationLoadingTests(unittest.TestCase):
+    def test_rejects_invalid_pattern_configuration(self):
+        invalid_configs = (
+            ("{invalid", "Could not load"),
+            ('["not", "an", "object"]', "must be a JSON object"),
+            ("{}", "cannot be empty"),
+            ('{"ipv4": "["}', "not a valid regular expression"),
+            ('{"": "value"}', "non-empty name"),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            config_file = Path(temporary_directory) / "patterns.json"
+            for content, message in invalid_configs:
+                with self.subTest(content=content):
+                    config_file.write_text(content, encoding="utf-8")
+                    with self.assertRaisesRegex(ConfigurationError, message):
+                        load_patterns(config_file)
+
+    def test_rejects_invalid_allowlist_configuration(self):
+        invalid_configs = (
+            ('["10.0.0.5"]', "must be a JSON object"),
+            ('{"ipv4": "10.0.0.5"}', "list of values"),
+            ('{"ipv4": [""]}', "list of values"),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            config_file = Path(temporary_directory) / "allowlist.json"
+            for content, message in invalid_configs:
+                with self.subTest(content=content):
+                    config_file.write_text(content, encoding="utf-8")
+                    with self.assertRaisesRegex(ConfigurationError, message):
+                        load_allowlist(config_file)
 
 class IPv4ValidationTests(unittest.TestCase):
     def test_accepts_valid_ipv4_addresses(self):

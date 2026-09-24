@@ -6,9 +6,14 @@ import re
 from collections import Counter
 from collections.abc import Collection, Iterator, Mapping
 from dataclasses import dataclass, field
+from pathlib import Path
 
 IOC_CONFIG_FILE = "iocs.json"
 ALLOWLIST_CONFIG_FILE = "allowlist.json"
+
+
+class ConfigurationError(ValueError):
+    """Raised when a scanner configuration file cannot be used safely."""
 
 
 @dataclass
@@ -22,16 +27,55 @@ class ScanStats:
     allowlisted_by_type: Counter[str] = field(default_factory=Counter)
 
 
-def load_patterns() -> dict[str, str]:
-    """Load IOC patterns from the default JSON configuration file."""
-    with open(IOC_CONFIG_FILE, "r") as f:
-        return json.load(f)
+def load_config_object(config_file: str | Path, label: str) -> dict:
+    """Load a JSON configuration file and require an object at its root."""
+    try:
+        with open(config_file, "r", encoding="utf-8") as file_stream:
+            config = json.load(file_stream)
+    except (OSError, json.JSONDecodeError) as error:
+        raise ConfigurationError(
+            f"Could not load {label} configuration '{config_file}': {error}"
+        ) from error
+
+    if not isinstance(config, dict):
+        raise ConfigurationError(f"The {label} configuration must be a JSON object.")
+    return config
 
 
-def load_allowlist() -> dict[str, list[str]]:
-    """Load trusted IOC values from the default JSON allowlist."""
-    with open(ALLOWLIST_CONFIG_FILE, "r") as f:
-        return json.load(f)
+def load_patterns(config_file: str | Path = IOC_CONFIG_FILE) -> dict[str, str]:
+    """Load and validate IOC regular expressions."""
+    patterns = load_config_object(config_file, "IOC pattern")
+    if not patterns:
+        raise ConfigurationError("The IOC pattern configuration cannot be empty.")
+
+    for ioc_type, pattern in patterns.items():
+        if not isinstance(ioc_type, str) or not ioc_type or not isinstance(pattern, str):
+            raise ConfigurationError(
+                "Each IOC pattern must have a non-empty name and string value."
+            )
+        try:
+            re.compile(pattern)
+        except re.error as error:
+            raise ConfigurationError(
+                f"IOC pattern '{ioc_type}' is not a valid regular expression: {error}"
+            ) from error
+    return patterns
+
+
+def load_allowlist(
+    config_file: str | Path = ALLOWLIST_CONFIG_FILE,
+) -> dict[str, list[str]]:
+    """Load and validate trusted IOC values."""
+    allowlist = load_config_object(config_file, "allowlist")
+    for ioc_type, values in allowlist.items():
+        valid_values = isinstance(values, list) and all(
+            isinstance(value, str) and value for value in values
+        )
+        if not isinstance(ioc_type, str) or not ioc_type or not valid_values:
+            raise ConfigurationError(
+                "Each allowlist entry must have a non-empty name and a list of values."
+            )
+    return allowlist
 
 
 def is_allowlisted(
