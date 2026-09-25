@@ -6,7 +6,9 @@ from .detections import (
     detect_success_after_failed_logins,
 )
 from .engine import (
+    ALLOWLIST_CONFIG_FILE,
     ConfigurationError,
+    IOC_CONFIG_FILE,
     ScanStats,
     classify_ipv4,
     find_iocs,
@@ -18,7 +20,9 @@ from .engine import (
 from .reporting import ScanMetadata, collect_scan_metadata
 
 __all__ = [
+    "ALLOWLIST_CONFIG_FILE",
     "ConfigurationError",
+    "IOC_CONFIG_FILE",
     "ScanStats",
     "ScanMetadata",
     "SecurityAlert",

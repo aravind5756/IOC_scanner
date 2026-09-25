@@ -6,7 +6,9 @@ from dataclasses import asdict
 from pathlib import Path
 
 from ioc_scanner import (
+    ALLOWLIST_CONFIG_FILE,
     ConfigurationError,
+    IOC_CONFIG_FILE,
     ScanStats,
     classify_ipv4,
     collect_scan_metadata,
@@ -58,18 +60,38 @@ def parse_args():
         metavar="MINUTES",
         help="Time window for failed login alerts (default: 5 minutes)",
     )
+    parser.add_argument(
+        "--patterns-file",
+        default=IOC_CONFIG_FILE,
+        help=f"IOC pattern configuration (default: {IOC_CONFIG_FILE})",
+    )
+    parser.add_argument(
+        "--allowlist-file",
+        default=ALLOWLIST_CONFIG_FILE,
+        help=f"Trusted IOC configuration (default: {ALLOWLIST_CONFIG_FILE})",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
 
-    if args.output and Path(args.log_file).resolve() == Path(args.output).resolve():
-        raise SystemExit("Error: the output file must be different from the log file.")
+    if args.output:
+        output_path = Path(args.output).resolve()
+        protected_files = (
+            (args.log_file, "log file"),
+            (args.patterns_file, "IOC pattern configuration"),
+            (args.allowlist_file, "allowlist configuration"),
+        )
+        for protected_file, description in protected_files:
+            if Path(protected_file).resolve() == output_path:
+                raise SystemExit(
+                    f"Error: the output file must differ from the {description}."
+                )
 
     try:
-        patterns = load_patterns()
-        allowlist = load_allowlist()
+        patterns = load_patterns(args.patterns_file)
+        allowlist = load_allowlist(args.allowlist_file)
     except ConfigurationError as error:
         raise SystemExit(f"Configuration error: {error}") from error
     metadata = collect_scan_metadata(args.log_file)
@@ -121,6 +143,10 @@ def main():
             report = {
                 "file": args.log_file,
                 "metadata": asdict(metadata),
+                "configuration": {
+                    "patterns_file": args.patterns_file,
+                    "allowlist_file": args.allowlist_file,
+                },
                 "summary": {
                     "lines_scanned": stats.lines_scanned,
                     "total_findings": stats.total_findings,
@@ -145,6 +171,8 @@ def main():
             print(f"File size: {metadata.size_bytes} bytes", file=output_stream)
             print(f"SHA-256: {metadata.sha256}", file=output_stream)
             print(f"Scanned at: {metadata.scanned_at_utc}", file=output_stream)
+            print(f"IOC patterns: {args.patterns_file}", file=output_stream)
+            print(f"Allowlist: {args.allowlist_file}", file=output_stream)
             print(f"Lines scanned: {stats.lines_scanned}", file=output_stream)
             print(f"Total findings: {stats.total_findings}", file=output_stream)
             for ioc_type, count in sorted(stats.findings_by_type.items()):

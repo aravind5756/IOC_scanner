@@ -24,6 +24,8 @@ class CLIReportTests(unittest.TestCase):
         threshold=None,
         window_minutes=None,
         allowlist=None,
+        patterns_file=None,
+        allowlist_file=None,
     ):
         if log_content is None:
             log_content = f"Connection from 10.0.0.5\nHash {MD5_VALUE}\n"
@@ -40,6 +42,10 @@ class CLIReportTests(unittest.TestCase):
                 arguments.extend(["--failed-login-threshold", str(threshold)])
             if window_minutes is not None:
                 arguments.extend(["--failed-login-window", str(window_minutes)])
+            if patterns_file is not None:
+                arguments.extend(["--patterns-file", patterns_file])
+            if allowlist_file is not None:
+                arguments.extend(["--allowlist-file", allowlist_file])
 
             output = io.StringIO()
             with (
@@ -77,6 +83,23 @@ class CLIReportTests(unittest.TestCase):
             metadata["sha256"], hashlib.sha256(log_content.encode()).hexdigest()
         )
         self.assertTrue(metadata["scanned_at_utc"].endswith("Z"))
+
+    def test_reports_selected_configuration_files(self):
+        report = json.loads(
+            self.run_scanner(
+                "json",
+                patterns_file="custom-patterns.json",
+                allowlist_file="trusted-values.json",
+            )
+        )
+
+        self.assertEqual(
+            report["configuration"],
+            {
+                "patterns_file": "custom-patterns.json",
+                "allowlist_file": "trusted-values.json",
+            },
+        )
 
     def test_text_report_displays_failed_login_alert(self):
         log_content = (
@@ -196,18 +219,41 @@ class CLIReportTests(unittest.TestCase):
             log_file = Path(temporary_directory) / "events.log"
             log_file.write_text("example", encoding="utf-8")
             arguments = ["scanner.py", str(log_file)]
+            arguments.extend(["--patterns-file", "broken-patterns.json"])
 
             with (
                 patch.object(sys, "argv", arguments),
                 patch(
                     "scanner.load_patterns",
                     side_effect=scanner.ConfigurationError("invalid IOC pattern"),
-                ),
+                ) as mock_load_patterns,
                 self.assertRaisesRegex(
                     SystemExit, "Configuration error: invalid IOC pattern"
                 ),
             ):
                 scanner.main()
+            mock_load_patterns.assert_called_once_with("broken-patterns.json")
+
+    def test_prevents_reports_from_overwriting_configuration_files(self):
+        protected_options = ("--patterns-file", "--allowlist-file")
+
+        for option in protected_options:
+            with self.subTest(option=option):
+                arguments = [
+                    "scanner.py",
+                    "events.log",
+                    option,
+                    "scanner-config.json",
+                    "--output",
+                    "scanner-config.json",
+                ]
+                with (
+                    patch.object(sys, "argv", arguments),
+                    self.assertRaisesRegex(
+                        SystemExit, "output file must differ from"
+                    ),
+                ):
+                    scanner.main()
 
 
 if __name__ == "__main__":
