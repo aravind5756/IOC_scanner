@@ -3,6 +3,7 @@ import io
 import unittest
 from unittest.mock import patch
 
+from ioc_scanner.engine import ConfigurationError
 from ioc_scanner.web import create_app
 
 IPV4_PATTERN = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
@@ -257,6 +258,24 @@ class WebApplicationTests(unittest.TestCase):
             response.get_json(),
             {"error": "Only .log and .txt files are supported."},
         )
+
+    @patch(
+        "ioc_scanner.web.load_patterns",
+        side_effect=ConfigurationError("invalid IOC pattern"),
+    )
+    def test_scan_upload_reports_configuration_errors(self, mock_load_patterns):
+        response = self.client.post(
+            "/scan",
+            data={"log_file": (io.BytesIO(b"example"), "events.log")},
+            content_type="multipart/form-data",
+        )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.get_json(),
+            {"error": "Scanner configuration error: invalid IOC pattern"},
+        )
+        mock_load_patterns.assert_called_once_with()
 
 
 if __name__ == "__main__":

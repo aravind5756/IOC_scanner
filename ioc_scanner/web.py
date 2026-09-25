@@ -12,6 +12,7 @@ from .detections import (
     detect_success_after_failed_logins,
 )
 from .engine import (
+    ConfigurationError,
     ScanStats,
     classify_ipv4,
     load_allowlist,
@@ -123,6 +124,8 @@ def create_app() -> Flask:
                 findings.append(finding)
         except UnicodeDecodeError:
             return jsonify(error="The uploaded file must contain plain text."), 400
+        except ConfigurationError as error:
+            return jsonify(error=f"Scanner configuration error: {error}"), 500
         finally:
             temporary_path.unlink(missing_ok=True)
 

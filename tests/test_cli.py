@@ -191,6 +191,24 @@ class CLIReportTests(unittest.TestCase):
         self.assertEqual(report["summary"]["allowlisted_by_type"], {"ipv4": 1})
         self.assertEqual(report["findings"][0]["value"], MD5_VALUE)
 
+    def test_reports_configuration_errors_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_file = Path(temporary_directory) / "events.log"
+            log_file.write_text("example", encoding="utf-8")
+            arguments = ["scanner.py", str(log_file)]
+
+            with (
+                patch.object(sys, "argv", arguments),
+                patch(
+                    "scanner.load_patterns",
+                    side_effect=scanner.ConfigurationError("invalid IOC pattern"),
+                ),
+                self.assertRaisesRegex(
+                    SystemExit, "Configuration error: invalid IOC pattern"
+                ),
+            ):
+                scanner.main()
+
 
 if __name__ == "__main__":
     unittest.main()

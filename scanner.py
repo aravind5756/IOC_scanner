@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from ioc_scanner import (
+    ConfigurationError,
     ScanStats,
     classify_ipv4,
     collect_scan_metadata,
@@ -66,8 +67,11 @@ def main():
     if args.output and Path(args.log_file).resolve() == Path(args.output).resolve():
         raise SystemExit("Error: the output file must be different from the log file.")
 
-    patterns = load_patterns()
-    allowlist = load_allowlist()
+    try:
+        patterns = load_patterns()
+        allowlist = load_allowlist()
+    except ConfigurationError as error:
+        raise SystemExit(f"Configuration error: {error}") from error
     metadata = collect_scan_metadata(args.log_file)
     with open(args.log_file, "r") as log_file:
         log_lines = log_file.readlines()
