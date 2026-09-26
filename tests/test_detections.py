@@ -1,6 +1,7 @@
 import unittest
 
 from ioc_scanner.detections import (
+    detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
 )
@@ -150,6 +151,71 @@ class SuccessfulLoginAfterFailuresTests(unittest.TestCase):
             with self.subTest(settings=settings):
                 with self.assertRaisesRegex(ValueError, message):
                     detect_success_after_failed_logins([], **settings)
+
+
+class PortScanDetectionTests(unittest.TestCase):
+    def test_alerts_for_distinct_ports_inside_the_time_window(self):
+        lines = [
+            "2026-08-10 09:00:00 DENY src=185.220.101.7 dst_port=22",
+            "2026-08-10 09:01:00 DENY source_ip=185.220.101.7 destination_port=80",
+            "2026-08-10 09:02:00 DENY src=185.220.101.7 dpt=443",
+        ]
+
+        alerts = detect_port_scan(lines, threshold=3, window_minutes=5)
+
+        self.assertEqual(len(alerts), 1)
+        alert = alerts[0]
+        self.assertEqual(alert.rule_id, "NET-001")
+        self.assertEqual(alert.title, "Possible port scanning activity")
+        self.assertEqual(alert.severity, "high")
+        self.assertEqual(alert.source_ip, "185.220.101.7")
+        self.assertEqual(alert.occurrences, 3)
+        self.assertEqual(alert.evidence_lines, (1, 2, 3))
+        self.assertEqual(alert.window_minutes, 5)
+
+    def test_counts_each_destination_port_once(self):
+        lines = [
+            "2026-08-10 09:00:00 DENY src=185.220.101.7 dst_port=22",
+            "2026-08-10 09:01:00 DENY src=185.220.101.7 dst_port=22",
+            "2026-08-10 09:02:00 DENY src=185.220.101.7 dst_port=22",
+        ]
+
+        alerts = detect_port_scan(lines, threshold=2, window_minutes=5)
+
+        self.assertEqual(alerts, [])
+
+    def test_does_not_combine_ports_outside_the_time_window(self):
+        lines = [
+            "2026-08-10 09:00:00 DENY src=185.220.101.7 dst_port=22",
+            "2026-08-10 09:10:00 DENY src=185.220.101.7 dst_port=80",
+        ]
+
+        alerts = detect_port_scan(lines, threshold=2, window_minutes=5)
+
+        self.assertEqual(alerts, [])
+
+    def test_ignores_incomplete_or_invalid_network_events(self):
+        lines = [
+            "DENY src=185.220.101.7 dst_port=22",
+            "2026-08-10 09:00:00 DENY src=999.999.999.999 dst_port=22",
+            "2026-08-10 09:01:00 DENY src=185.220.101.7 dst_port=70000",
+            "2026-08-10 09:02:00 DENY src=185.220.101.7",
+        ]
+
+        alerts = detect_port_scan(lines, threshold=2)
+
+        self.assertEqual(alerts, [])
+
+    def test_rejects_invalid_rule_settings(self):
+        invalid_settings = (
+            ({"threshold": 1}, "threshold must be at least 2 ports"),
+            ({"window_minutes": 0}, "window must be at least 1 minute"),
+        )
+
+        for settings, message in invalid_settings:
+            with self.subTest(settings=settings):
+                with self.assertRaisesRegex(ValueError, message):
+                    detect_port_scan([], **settings)
 
 
 if __name__ == "__main__":
