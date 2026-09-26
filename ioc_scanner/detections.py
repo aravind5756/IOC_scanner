@@ -14,6 +14,14 @@ SUCCESSFUL_LOGIN_TERMS = ("successful login", "accepted password", "logged in")
 TIMESTAMP_PATTERN = re.compile(
     r"^(?P<timestamp>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?)"
 )
+SOURCE_IP_PATTERN = re.compile(
+    rf"\b(?:src|source_ip)\s*=\s*(?P<source>{IPV4_PATTERN})",
+    re.IGNORECASE,
+)
+DESTINATION_PORT_PATTERN = re.compile(
+    r"\b(?:dst_port|destination_port|dpt)\s*=\s*(?P<port>\d{1,5})\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -196,5 +204,71 @@ def detect_success_after_failed_logins(
                 )
             )
             break
+
+    return alerts
+
+
+def detect_port_scan(
+    lines: Iterable[str], threshold: int = 10, window_minutes: int = 5
+) -> list[SecurityAlert]:
+    """Detect one source probing many destination ports in a short period."""
+    if threshold < 2:
+        raise ValueError("The port-scan threshold must be at least 2 ports.")
+    if window_minutes < 1:
+        raise ValueError("The port-scan window must be at least 1 minute.")
+
+    events_by_ip: defaultdict[str, list[tuple[int, datetime, int]]] = defaultdict(list)
+
+    for line_number, line in enumerate(lines, start=1):
+        timestamp = parse_log_timestamp(line)
+        source_match = SOURCE_IP_PATTERN.search(line)
+        port_match = DESTINATION_PORT_PATTERN.search(line)
+        if timestamp is None or source_match is None or port_match is None:
+            continue
+
+        source_ip = source_match.group("source")
+        destination_port = int(port_match.group("port"))
+        if not is_valid_ipv4(source_ip) or not 1 <= destination_port <= 65535:
+            continue
+
+        events_by_ip[source_ip].append(
+            (line_number, timestamp, destination_port)
+        )
+
+    alerts = []
+    window = timedelta(minutes=window_minutes)
+    for source_ip, events in sorted(events_by_ip.items()):
+        ordered_events = sorted(events, key=lambda event: event[1])
+        window_start = 0
+        busiest_events: list[tuple[int, datetime, int]] = []
+        busiest_port_count = 0
+
+        for window_end, (_, end_time, _) in enumerate(ordered_events):
+            while end_time - ordered_events[window_start][1] > window:
+                window_start += 1
+            candidate = ordered_events[window_start : window_end + 1]
+            candidate_port_count = len({event[2] for event in candidate})
+            if candidate_port_count > busiest_port_count:
+                busiest_events = candidate
+                busiest_port_count = candidate_port_count
+
+        if busiest_port_count < threshold:
+            continue
+
+        evidence_by_port = {
+            destination_port: line_number
+            for line_number, _, destination_port in busiest_events
+        }
+        alerts.append(
+            SecurityAlert(
+                rule_id="NET-001",
+                title="Possible port scanning activity",
+                severity="high",
+                source_ip=source_ip,
+                occurrences=busiest_port_count,
+                evidence_lines=tuple(sorted(evidence_by_port.values())),
+                window_minutes=window_minutes,
+            )
+        )
 
     return alerts
