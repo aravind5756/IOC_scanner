@@ -12,6 +12,7 @@ from ioc_scanner import (
     ScanStats,
     classify_ipv4,
     collect_scan_metadata,
+    detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
     load_allowlist,
@@ -29,6 +30,14 @@ def positive_integer(value: str) -> int:
 
     if number < 1:
         raise argparse.ArgumentTypeError("must be at least 1")
+    return number
+
+
+def port_threshold(value: str) -> int:
+    """Parse a port-scan threshold that must include multiple ports."""
+    number = positive_integer(value)
+    if number < 2:
+        raise argparse.ArgumentTypeError("must be at least 2")
     return number
 
 
@@ -59,6 +68,20 @@ def parse_args():
         default=5,
         metavar="MINUTES",
         help="Time window for failed login alerts (default: 5 minutes)",
+    )
+    parser.add_argument(
+        "--port-scan-threshold",
+        type=port_threshold,
+        default=10,
+        metavar="PORTS",
+        help="Distinct destination ports required for an alert (default: 10)",
+    )
+    parser.add_argument(
+        "--port-scan-window",
+        type=positive_integer,
+        default=5,
+        metavar="MINUTES",
+        help="Time window for port-scan alerts (default: 5 minutes)",
     )
     parser.add_argument(
         "--patterns-file",
@@ -105,6 +128,13 @@ def main():
     alerts = detect_repeated_failed_logins(log_lines, **detection_settings)
     alerts.extend(
         detect_success_after_failed_logins(log_lines, **detection_settings)
+    )
+    alerts.extend(
+        detect_port_scan(
+            log_lines,
+            threshold=args.port_scan_threshold,
+            window_minutes=args.port_scan_window,
+        )
     )
 
     stats = ScanStats()
@@ -154,6 +184,8 @@ def main():
                     "total_alerts": len(alerts),
                     "failed_login_threshold": args.failed_login_threshold,
                     "failed_login_window_minutes": args.failed_login_window,
+                    "port_scan_threshold": args.port_scan_threshold,
+                    "port_scan_window_minutes": args.port_scan_window,
                     "findings_by_type": dict(
                         sorted(stats.findings_by_type.items())
                     ),
@@ -189,6 +221,11 @@ def main():
             print(
                 f"Failed-login rule: {args.failed_login_threshold} attempts "
                 f"within {args.failed_login_window} minutes",
+                file=output_stream,
+            )
+            print(
+                f"Port-scan rule: {args.port_scan_threshold} ports "
+                f"within {args.port_scan_window} minutes",
                 file=output_stream,
             )
             for alert in alerts:

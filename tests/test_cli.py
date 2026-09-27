@@ -23,6 +23,8 @@ class CLIReportTests(unittest.TestCase):
         log_content=None,
         threshold=None,
         window_minutes=None,
+        port_threshold=None,
+        port_window_minutes=None,
         allowlist=None,
         patterns_file=None,
         allowlist_file=None,
@@ -42,6 +44,10 @@ class CLIReportTests(unittest.TestCase):
                 arguments.extend(["--failed-login-threshold", str(threshold)])
             if window_minutes is not None:
                 arguments.extend(["--failed-login-window", str(window_minutes)])
+            if port_threshold is not None:
+                arguments.extend(["--port-scan-threshold", str(port_threshold)])
+            if port_window_minutes is not None:
+                arguments.extend(["--port-scan-window", str(port_window_minutes)])
             if patterns_file is not None:
                 arguments.extend(["--patterns-file", patterns_file])
             if allowlist_file is not None:
@@ -191,6 +197,39 @@ class CLIReportTests(unittest.TestCase):
         self.assertEqual(correlated_alert["occurrences"], 2)
         self.assertEqual(correlated_alert["evidence_lines"], [1, 2, 3])
         self.assertEqual(correlated_alert["window_minutes"], 5)
+
+    def test_text_report_displays_port_scan_alert(self):
+        log_content = (
+            "2026-08-10 09:00:00 DENY src=185.220.101.7 dst_port=22\n"
+            "2026-08-10 09:01:00 DENY src=185.220.101.7 dst_port=80\n"
+            "2026-08-10 09:02:00 DENY src=185.220.101.7 dst_port=443\n"
+        )
+
+        output = self.run_scanner(
+            "text", log_content, port_threshold=3, port_window_minutes=5
+        )
+
+        self.assertIn("Security alerts: 1", output)
+        self.assertIn("Port-scan rule: 3 ports within 5 minutes", output)
+        self.assertIn("[HIGH] NET-001: Possible port scanning activity", output)
+        self.assertIn("Evidence lines: 1, 2, 3", output)
+
+    def test_json_report_includes_port_scan_settings_and_alert(self):
+        log_content = (
+            "2026-08-10 09:00:00 DENY source_ip=203.0.113.8 dpt=53\n"
+            "2026-08-10 09:01:00 DENY source_ip=203.0.113.8 dpt=443\n"
+        )
+
+        report = json.loads(
+            self.run_scanner(
+                "json", log_content, port_threshold=2, port_window_minutes=3
+            )
+        )
+
+        self.assertEqual(report["summary"]["port_scan_threshold"], 2)
+        self.assertEqual(report["summary"]["port_scan_window_minutes"], 3)
+        self.assertEqual(report["alerts"][0]["rule_id"], "NET-001")
+        self.assertEqual(report["alerts"][0]["occurrences"], 2)
 
     def test_text_report_excludes_allowlisted_findings(self):
         output = self.run_scanner(
