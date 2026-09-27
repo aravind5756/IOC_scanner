@@ -8,6 +8,7 @@ from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from .detections import (
+    detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
 )
@@ -25,15 +26,17 @@ MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".log", ".txt"}
 DEFAULT_FAILED_LOGIN_THRESHOLD = 5
 DEFAULT_FAILED_LOGIN_WINDOW = 5
+DEFAULT_PORT_SCAN_THRESHOLD = 10
+DEFAULT_PORT_SCAN_WINDOW = 5
 
 
-def parse_positive_integer(value: str | None) -> int | None:
-    """Parse a positive whole number submitted by a web form."""
+def parse_positive_integer(value: str | None, minimum: int = 1) -> int | None:
+    """Parse a whole number that meets a minimum value."""
     try:
         number = int(value) if value is not None else 0
     except ValueError:
         return None
-    return number if number >= 1 else None
+    return number if number >= minimum else None
 
 
 def create_app() -> Flask:
@@ -85,6 +88,25 @@ def create_app() -> Flask:
                 error="The failed-login window must be a whole number of at least 1 minute."
             ), 400
 
+        port_scan_threshold = parse_positive_integer(
+            request.form.get(
+                "port_scan_threshold", str(DEFAULT_PORT_SCAN_THRESHOLD)
+            ),
+            minimum=2,
+        )
+        if port_scan_threshold is None:
+            return jsonify(
+                error="The port-scan threshold must be a whole number of at least 2."
+            ), 400
+
+        port_scan_window = parse_positive_integer(
+            request.form.get("port_scan_window", str(DEFAULT_PORT_SCAN_WINDOW))
+        )
+        if port_scan_window is None:
+            return jsonify(
+                error="The port-scan window must be a whole number of at least 1 minute."
+            ), 400
+
         with NamedTemporaryFile(delete=False, suffix=extension) as temporary_file:
             uploaded_file.save(temporary_file)
             temporary_path = Path(temporary_file.name)
@@ -105,6 +127,13 @@ def create_app() -> Flask:
             alerts = detect_repeated_failed_logins(log_lines, **detection_settings)
             alerts.extend(
                 detect_success_after_failed_logins(log_lines, **detection_settings)
+            )
+            alerts.extend(
+                detect_port_scan(
+                    log_lines,
+                    threshold=port_scan_threshold,
+                    window_minutes=port_scan_window,
+                )
             )
 
             stats = ScanStats()
@@ -139,6 +168,8 @@ def create_app() -> Flask:
                 "total_alerts": len(alerts),
                 "failed_login_threshold": failed_login_threshold,
                 "failed_login_window_minutes": failed_login_window,
+                "port_scan_threshold": port_scan_threshold,
+                "port_scan_window_minutes": port_scan_window,
                 "findings_by_type": dict(sorted(stats.findings_by_type.items())),
                 "allowlisted_by_type": dict(
                     sorted(stats.allowlisted_by_type.items())

@@ -170,6 +170,38 @@ class WebApplicationTests(unittest.TestCase):
         mock_load_patterns.assert_called_once_with()
         mock_load_allowlist.assert_called_once_with()
 
+    @patch("ioc_scanner.web.load_allowlist", return_value={})
+    @patch("ioc_scanner.web.load_patterns", return_value={})
+    def test_scan_upload_returns_port_scan_alert(
+        self, mock_load_patterns, mock_load_allowlist
+    ):
+        network_events = b"\n".join(
+            [
+                b"2026-08-10 09:00:00 DENY src=185.220.101.7 dst_port=22",
+                b"2026-08-10 09:01:00 DENY src=185.220.101.7 dst_port=80",
+                b"2026-08-10 09:02:00 DENY src=185.220.101.7 dst_port=443",
+            ]
+        )
+        response = self.client.post(
+            "/scan",
+            data={
+                "log_file": (io.BytesIO(network_events), "firewall.log"),
+                "port_scan_threshold": "3",
+                "port_scan_window": "4",
+            },
+            content_type="multipart/form-data",
+        )
+
+        report = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["summary"]["port_scan_threshold"], 3)
+        self.assertEqual(report["summary"]["port_scan_window_minutes"], 4)
+        self.assertEqual(report["summary"]["total_alerts"], 1)
+        self.assertEqual(report["alerts"][0]["rule_id"], "NET-001")
+        self.assertEqual(report["alerts"][0]["evidence_lines"], [1, 2, 3])
+        mock_load_patterns.assert_called_once_with()
+        mock_load_allowlist.assert_called_once_with()
+
     def test_scan_upload_rejects_invalid_failed_login_threshold(self):
         response = self.client.post(
             "/scan",
@@ -210,6 +242,32 @@ class WebApplicationTests(unittest.TestCase):
                 )
             },
         )
+
+    def test_scan_upload_rejects_invalid_port_scan_settings(self):
+        invalid_settings = (
+            (
+                {"port_scan_threshold": "1"},
+                "The port-scan threshold must be a whole number of at least 2.",
+            ),
+            (
+                {"port_scan_window": "0"},
+                "The port-scan window must be a whole number of at least 1 minute.",
+            ),
+        )
+
+        for settings, expected_error in invalid_settings:
+            with self.subTest(settings=settings):
+                response = self.client.post(
+                    "/scan",
+                    data={
+                        "log_file": (io.BytesIO(b"example"), "firewall.log"),
+                        **settings,
+                    },
+                    content_type="multipart/form-data",
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.get_json(), {"error": expected_error})
 
     @patch(
         "ioc_scanner.web.load_allowlist",
