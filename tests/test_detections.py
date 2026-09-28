@@ -1,10 +1,62 @@
 import unittest
 
 from ioc_scanner.detections import (
+    detect_encoded_powershell,
     detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
 )
+
+
+class EncodedPowerShellDetectionTests(unittest.TestCase):
+    def test_detects_encoded_powershell_commands(self):
+        lines = [
+            "Process created: powershell.exe -EncodedCommand SQBFAFgA\n",
+            "Process created: pwsh -enc YQBiAGMA source_ip=203.0.113.8\n",
+        ]
+
+        alerts = detect_encoded_powershell(lines)
+
+        self.assertEqual(len(alerts), 2)
+        self.assertEqual(alerts[0].rule_id, "CMD-001")
+        self.assertEqual(alerts[0].title, "Encoded PowerShell command")
+        self.assertEqual(alerts[0].severity, "high")
+        self.assertIsNone(alerts[0].source_ip)
+        self.assertEqual(alerts[0].evidence_lines, (1,))
+        self.assertEqual(alerts[1].source_ip, "203.0.113.8")
+        self.assertEqual(alerts[1].evidence_lines, (2,))
+
+    def test_matches_command_names_and_flags_case_insensitively(self):
+        lines = [
+            "POWERSHELL -ENC AAAA\n",
+            "PwSh.ExE -eNcOdEdCoMmAnD BBBB\n",
+        ]
+
+        alerts = detect_encoded_powershell(lines)
+
+        self.assertEqual([alert.evidence_lines for alert in alerts], [(1,), (2,)])
+
+    def test_ignores_benign_or_unrelated_commands(self):
+        lines = [
+            "powershell.exe Get-Process\n",
+            "python.exe -EncodedCommand example\n",
+            "PowerShell script completed successfully\n",
+        ]
+
+        self.assertEqual(detect_encoded_powershell(lines), [])
+
+    def test_preserves_original_line_numbers(self):
+        lines = [
+            "Routine process event\n",
+            "Another routine event\n",
+            "process=powershell.exe command_line='powershell -enc SQBFAFgA'\n",
+        ]
+
+        alerts = detect_encoded_powershell(lines)
+
+        self.assertEqual(alerts[0].occurrences, 1)
+        self.assertEqual(alerts[0].evidence_lines, (3,))
+        self.assertIsNone(alerts[0].window_minutes)
 
 
 class RepeatedFailedLoginTests(unittest.TestCase):

@@ -2,6 +2,7 @@
 
 from .detections import (
     SecurityAlert,
+    detect_encoded_powershell,
     detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
@@ -29,6 +30,7 @@ __all__ = [
     "SecurityAlert",
     "classify_ipv4",
     "collect_scan_metadata",
+    "detect_encoded_powershell",
     "detect_repeated_failed_logins",
     "detect_port_scan",
     "detect_success_after_failed_logins",

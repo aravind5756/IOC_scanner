@@ -22,16 +22,22 @@ DESTINATION_PORT_PATTERN = re.compile(
     r"\b(?:dst_port|destination_port|dpt)\s*=\s*(?P<port>\d{1,5})\b",
     re.IGNORECASE,
 )
+POWERSHELL_PATTERN = re.compile(
+    r"\b(?:powershell|pwsh)(?:\.exe)?\b", re.IGNORECASE
+)
+ENCODED_COMMAND_PATTERN = re.compile(
+    r"(?<!\w)-(?:enc|encodedcommand)\b", re.IGNORECASE
+)
 
 
 @dataclass(frozen=True)
 class SecurityAlert:
-    """A suspicious behaviour detected across multiple log entries."""
+    """A suspicious security event or behaviour detected in log data."""
 
     rule_id: str
     title: str
     severity: str
-    source_ip: str
+    source_ip: str | None
     occurrences: int
     evidence_lines: tuple[int, ...]
     window_minutes: int | None
@@ -268,6 +274,36 @@ def detect_port_scan(
                 occurrences=busiest_port_count,
                 evidence_lines=tuple(sorted(evidence_by_port.values())),
                 window_minutes=window_minutes,
+            )
+        )
+
+    return alerts
+
+
+def detect_encoded_powershell(lines: Iterable[str]) -> list[SecurityAlert]:
+    """Detect PowerShell processes launched with an encoded command."""
+    alerts = []
+
+    for line_number, line in enumerate(lines, start=1):
+        if not POWERSHELL_PATTERN.search(line):
+            continue
+        if not ENCODED_COMMAND_PATTERN.search(line):
+            continue
+
+        source_match = SOURCE_IP_PATTERN.search(line)
+        source_ip = source_match.group("source") if source_match else None
+        if source_ip is not None and not is_valid_ipv4(source_ip):
+            source_ip = None
+
+        alerts.append(
+            SecurityAlert(
+                rule_id="CMD-001",
+                title="Encoded PowerShell command",
+                severity="high",
+                source_ip=source_ip,
+                occurrences=1,
+                evidence_lines=(line_number,),
+                window_minutes=None,
             )
         )
 
