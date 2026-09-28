@@ -46,6 +46,10 @@ function displayReport(report) {
     report.summary.failed_login_threshold;
   document.querySelector("#failed-login-window-used").textContent =
     report.summary.failed_login_window_minutes;
+  document.querySelector("#port-scan-threshold-used").textContent =
+    report.summary.port_scan_threshold;
+  document.querySelector("#port-scan-window-used").textContent =
+    report.summary.port_scan_window_minutes;
   document.querySelector("#evidence-size").textContent =
     `${report.metadata.size_bytes.toLocaleString()} bytes`;
   document.querySelector("#evidence-sha256").textContent = report.metadata.sha256;

@@ -27,6 +27,10 @@ class WebApplicationTests(unittest.TestCase):
         self.assertIn(b'id="allowlisted-findings"', response.data)
         self.assertIn(b'name="failed_login_threshold"', response.data)
         self.assertIn(b'name="failed_login_window"', response.data)
+        self.assertIn(b'name="port_scan_threshold"', response.data)
+        self.assertIn(b'name="port_scan_window"', response.data)
+        self.assertIn(b'id="port-scan-threshold-used"', response.data)
+        self.assertIn(b'id="port-scan-window-used"', response.data)
 
     def test_health_endpoint_reports_ok(self):
         response = self.client.get("/health")

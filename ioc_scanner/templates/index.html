@@ -26,30 +26,59 @@
             <label for="log-file">Log file</label>
             <input id="log-file" name="log_file" type="file" accept=".log,.txt" required>
           </div>
-          <div class="form-field rule-setting-field">
-            <label for="failed-login-threshold">Failed-login alert threshold</label>
-            <input
-              id="failed-login-threshold"
-              name="failed_login_threshold"
-              type="number"
-              min="1"
-              step="1"
-              value="5"
-              required
-            >
-          </div>
-          <div class="form-field rule-setting-field">
-            <label for="failed-login-window">Detection window (minutes)</label>
-            <input
-              id="failed-login-window"
-              name="failed_login_window"
-              type="number"
-              min="1"
-              step="1"
-              value="5"
-              required
-            >
-          </div>
+          <fieldset class="rule-settings">
+            <legend>Detection rules</legend>
+            <div class="rule-settings-grid">
+              <div class="form-field">
+                <label for="failed-login-threshold">Failed-login threshold</label>
+                <input
+                  id="failed-login-threshold"
+                  name="failed_login_threshold"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value="5"
+                  required
+                >
+              </div>
+              <div class="form-field">
+                <label for="failed-login-window">Failed-login window (minutes)</label>
+                <input
+                  id="failed-login-window"
+                  name="failed_login_window"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value="5"
+                  required
+                >
+              </div>
+              <div class="form-field">
+                <label for="port-scan-threshold">Port-scan threshold</label>
+                <input
+                  id="port-scan-threshold"
+                  name="port_scan_threshold"
+                  type="number"
+                  min="2"
+                  step="1"
+                  value="10"
+                  required
+                >
+              </div>
+              <div class="form-field">
+                <label for="port-scan-window">Port-scan window (minutes)</label>
+                <input
+                  id="port-scan-window"
+                  name="port_scan_window"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value="5"
+                  required
+                >
+              </div>
+            </div>
+          </fieldset>
           <button id="scan-button" type="submit">Scan file</button>
         </form>
 
@@ -79,12 +108,20 @@
             <dd id="total-alerts"></dd>
           </div>
           <div class="summary-card">
-            <dt>Alert threshold</dt>
+            <dt>Failed-login threshold</dt>
             <dd id="failed-login-threshold-used"></dd>
           </div>
           <div class="summary-card">
-            <dt>Detection window</dt>
+            <dt>Failed-login window</dt>
             <dd><span id="failed-login-window-used"></span> min</dd>
+          </div>
+          <div class="summary-card">
+            <dt>Port-scan threshold</dt>
+            <dd><span id="port-scan-threshold-used"></span> ports</dd>
+          </div>
+          <div class="summary-card">
+            <dt>Port-scan window</dt>
+            <dd><span id="port-scan-window-used"></span> min</dd>
           </div>
         </dl>
 
