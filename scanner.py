@@ -12,6 +12,7 @@ from ioc_scanner import (
     ScanStats,
     classify_ipv4,
     collect_scan_metadata,
+    detect_encoded_powershell,
     detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
@@ -136,6 +137,7 @@ def main():
             window_minutes=args.port_scan_window,
         )
     )
+    alerts.extend(detect_encoded_powershell(log_lines))
 
     stats = ScanStats()
     json_findings = []
@@ -233,7 +235,8 @@ def main():
                     f"[{alert.severity.upper()}] {alert.rule_id}: {alert.title}",
                     file=output_stream,
                 )
-                print(f"  Source IP: {alert.source_ip}", file=output_stream)
+                if alert.source_ip is not None:
+                    print(f"  Source IP: {alert.source_ip}", file=output_stream)
                 print(f"  Occurrences: {alert.occurrences}", file=output_stream)
                 evidence = ", ".join(str(line) for line in alert.evidence_lines)
                 print(f"  Evidence lines: {evidence}", file=output_stream)

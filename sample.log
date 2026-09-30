@@ -8,3 +8,4 @@
 2026-08-10 09:20:14 WARNING Suspicious email received from billing@malicious-example.com
 2026-08-10 09:21:37 ERROR Blocked outbound request to http://malicious-example.com/payload.exe
 2026-08-10 09:23:05 WARNING SHA-1 signature match: 3395856ce81f2b7382dee72602f798b642f14140
+2026-08-10 09:24:12 WARNING Process created: powershell.exe -EncodedCommand SQBFAFgA

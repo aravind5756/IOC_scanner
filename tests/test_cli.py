@@ -231,6 +231,41 @@ class CLIReportTests(unittest.TestCase):
         self.assertEqual(report["alerts"][0]["rule_id"], "NET-001")
         self.assertEqual(report["alerts"][0]["occurrences"], 2)
 
+    def test_text_report_displays_encoded_powershell_alert(self):
+        log_content = (
+            "2026-08-10 09:00:00 process=powershell.exe "
+            "command_line='powershell.exe -EncodedCommand SQBFAFgA'\n"
+        )
+
+        output = self.run_scanner("text", log_content)
+
+        self.assertIn("Security alerts: 1", output)
+        self.assertIn("[HIGH] CMD-001: Encoded PowerShell command", output)
+        self.assertIn("Evidence lines: 1", output)
+        self.assertNotIn("Source IP: None", output)
+
+    def test_json_report_includes_encoded_powershell_alert(self):
+        log_content = (
+            "2026-08-10 09:00:00 process=pwsh command_line='pwsh -enc YQBiAGMA' "
+            "source_ip=203.0.113.8\n"
+        )
+
+        report = json.loads(self.run_scanner("json", log_content))
+
+        self.assertEqual(report["summary"]["total_alerts"], 1)
+        self.assertEqual(
+            report["alerts"][0],
+            {
+                "rule_id": "CMD-001",
+                "title": "Encoded PowerShell command",
+                "severity": "high",
+                "source_ip": "203.0.113.8",
+                "occurrences": 1,
+                "evidence_lines": [1],
+                "window_minutes": None,
+            },
+        )
+
     def test_text_report_excludes_allowlisted_findings(self):
         output = self.run_scanner(
             "text", allowlist={"ipv4": ["10.0.0.5"]}
