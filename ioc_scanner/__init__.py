@@ -19,10 +19,16 @@ from .engine import (
     load_patterns,
     scan_file,
 )
-from .reporting import ScanMetadata, collect_scan_metadata
+from .reporting import (
+    AlertSummary,
+    ScanMetadata,
+    collect_scan_metadata,
+    summarise_alerts,
+)
 
 __all__ = [
     "ALLOWLIST_CONFIG_FILE",
+    "AlertSummary",
     "ConfigurationError",
     "IOC_CONFIG_FILE",
     "ScanStats",
@@ -39,4 +45,5 @@ __all__ = [
     "load_allowlist",
     "load_patterns",
     "scan_file",
+    "summarise_alerts",
 ]

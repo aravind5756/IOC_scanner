@@ -4,7 +4,61 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-from ioc_scanner.reporting import collect_scan_metadata, safe_file_name
+from ioc_scanner.detections import SecurityAlert
+from ioc_scanner.reporting import (
+    collect_scan_metadata,
+    safe_file_name,
+    summarise_alerts,
+)
+
+
+def make_alert(severity):
+    return SecurityAlert(
+        rule_id="TEST-001",
+        title="Test alert",
+        severity=severity,
+        source_ip=None,
+        occurrences=1,
+        evidence_lines=(1,),
+        window_minutes=None,
+    )
+
+
+class AlertSummaryTests(unittest.TestCase):
+    def test_reports_no_risk_when_there_are_no_alerts(self):
+        summary = summarise_alerts([])
+
+        self.assertEqual(summary.risk_level, "none")
+        self.assertEqual(
+            summary.alerts_by_severity,
+            {"low": 0, "medium": 0, "high": 0, "critical": 0},
+        )
+
+    def test_counts_each_severity_and_uses_the_highest_risk(self):
+        alerts = [
+            make_alert("low"),
+            make_alert("high"),
+            make_alert("critical"),
+            make_alert("high"),
+        ]
+
+        summary = summarise_alerts(alerts)
+
+        self.assertEqual(summary.risk_level, "critical")
+        self.assertEqual(
+            summary.alerts_by_severity,
+            {"low": 1, "medium": 0, "high": 2, "critical": 1},
+        )
+
+    def test_normalises_severity_names(self):
+        summary = summarise_alerts([make_alert("HIGH")])
+
+        self.assertEqual(summary.risk_level, "high")
+        self.assertEqual(summary.alerts_by_severity["high"], 1)
+
+    def test_rejects_unknown_severity_names(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported alert severity: urgent"):
+            summarise_alerts([make_alert("urgent")])
 
 
 class ScanMetadataTests(unittest.TestCase):
