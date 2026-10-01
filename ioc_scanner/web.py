@@ -8,6 +8,7 @@ from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from .detections import (
+    detect_encoded_powershell,
     detect_port_scan,
     detect_repeated_failed_logins,
     detect_success_after_failed_logins,
@@ -135,6 +136,7 @@ def create_app() -> Flask:
                     window_minutes=port_scan_window,
                 )
             )
+            alerts.extend(detect_encoded_powershell(log_lines))
 
             stats = ScanStats()
             findings = []

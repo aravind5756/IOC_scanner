@@ -68,7 +68,9 @@ function displayReport(report) {
     const heading = document.createElement("h4");
     heading.textContent = `[${alert.severity.toUpperCase()}] ${alert.rule_id}: ${alert.title}`;
     card.appendChild(heading);
-    addAlertDetail(card, "Source IP", alert.source_ip);
+    if (alert.source_ip) {
+      addAlertDetail(card, "Source IP", alert.source_ip);
+    }
     addAlertDetail(card, "Occurrences", alert.occurrences.toString());
     addAlertDetail(card, "Evidence lines", alert.evidence_lines.join(", "));
     if (alert.window_minutes !== null) {

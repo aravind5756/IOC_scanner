@@ -206,6 +206,37 @@ class WebApplicationTests(unittest.TestCase):
         mock_load_patterns.assert_called_once_with()
         mock_load_allowlist.assert_called_once_with()
 
+    @patch("ioc_scanner.web.load_allowlist", return_value={})
+    @patch("ioc_scanner.web.load_patterns", return_value={})
+    def test_scan_upload_returns_encoded_powershell_alerts(
+        self, mock_load_patterns, mock_load_allowlist
+    ):
+        process_events = b"\n".join(
+            [
+                b"Process: powershell.exe -EncodedCommand SQBFAFgA",
+                b"Process: pwsh -enc YQBiAGMA source_ip=203.0.113.8",
+            ]
+        )
+        response = self.client.post(
+            "/scan",
+            data={"log_file": (io.BytesIO(process_events), "processes.log")},
+            content_type="multipart/form-data",
+        )
+
+        report = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(report["summary"]["total_alerts"], 2)
+        self.assertEqual(
+            [alert["rule_id"] for alert in report["alerts"]],
+            ["CMD-001", "CMD-001"],
+        )
+        self.assertIsNone(report["alerts"][0]["source_ip"])
+        self.assertEqual(report["alerts"][0]["evidence_lines"], [1])
+        self.assertEqual(report["alerts"][1]["source_ip"], "203.0.113.8")
+        self.assertEqual(report["alerts"][1]["evidence_lines"], [2])
+        mock_load_patterns.assert_called_once_with()
+        mock_load_allowlist.assert_called_once_with()
+
     def test_scan_upload_rejects_invalid_failed_login_threshold(self):
         response = self.client.post(
             "/scan",
